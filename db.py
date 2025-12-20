@@ -192,10 +192,11 @@ def orders_list(limit: int = 200) -> List[Dict[str, Any]]:
             "SELECT * FROM orders ORDER BY id DESC LIMIT ?",
             (int(limit),)
         ).fetchall()
-    return [dict(r) for r in rows)
+    return [dict(r) for r in rows]
 
 
 def order_update_status(order_id: int, status: str) -> None:
     status = (status or "").strip() or "new"
     with _conn() as conn:
         conn.execute("UPDATE orders SET status=? WHERE id=?", (status, int(order_id)))
+
