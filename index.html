@@ -1,0 +1,56 @@
+from fastapi import FastAPI
+from fastapi.responses import FileResponse
+import db
+
+app = FastAPI()
+db.init_db()
+
+@app.get("/")
+def index():
+    return FileResponse("index.html")
+
+@app.get("/api/products")
+def api_products():
+    return db.products()
+
+
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body style="background:#111;color:#fff;font-family:sans-serif">
+<h2>Магазин</h2>
+<div id="list"></div>
+<button onclick="send()">Оформить</button>
+
+<script>
+const tg = Telegram.WebApp;
+tg.expand();
+let cart = {};
+
+fetch("/api/products").then(r=>r.json()).then(data=>{
+  data.forEach(p=>{
+    let d=document.createElement("div");
+    d.innerHTML=`<b>${p.name}</b> (${p.category}) - ${p.price}₽
+    <button onclick="add(${p.id},'${p.name}',${p.price})">+</button>`;
+    document.getElementById("list").appendChild(d);
+  });
+});
+
+function add(id,name,price){
+  if(!cart[id]) cart[id]={name,price,qty:0};
+  cart[id].qty++;
+}
+
+function send(){
+  let items=Object.values(cart);
+  let total=items.reduce((s,i)=>s+i.price*i.qty,0);
+  tg.sendData(JSON.stringify({items,total}));
+  tg.close();
+}
+</script>
+</body>
+</html>
