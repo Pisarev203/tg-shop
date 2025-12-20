@@ -551,5 +551,38 @@ textContent = "Выбирай товары и оформляй заказ";
 loadProducts();
     render();
   </script>
+  <script>
+const checkoutBtn = document.getElementById("checkoutBtn");
+
+checkoutBtn.addEventListener("click", async () => {
+    const order = {
+        tg_user: "test_user", // позже заменим на Telegram ID
+        metro: document.getElementById("metro")?.value || "",
+        time: document.getElementById("time")?.value || "",
+        items: window.cart || [],
+        total: window.cartTotal || 0
+    };
+
+    const res = await fetch("/api/order", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(order)
+    });
+
+    const data = await res.json();
+
+    if (data.ok) {
+        alert("Заказ оформлен! №" + data.order_id);
+        window.cart = [];
+        window.cartTotal = 0;
+        location.reload();
+    } else {
+        alert("Ошибка при оформлении");
+    }
+});
+</script>
 </body>
 </html>
+
