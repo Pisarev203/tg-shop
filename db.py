@@ -121,9 +121,11 @@ def update_category(cat_id: int, name: str, sort: int = 0) -> None:
     name = (name or "").strip()
     if not name:
         raise ValueError("Название категории пустое")
-with _conn() as conn:
-        conn.execute("UPDATE categories SET name=?, sort=? WHERE id=?", (name, int(sort), int(cat_id)))
-
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE categories SET name=?, sort=? WHERE id=?",
+            (name, int(sort), int(cat_id))
+        )
 
 def delete_category(cat_id: int) -> None:
     with _conn() as conn:
@@ -229,3 +231,4 @@ def create_order(tg_user: str, metro: str, delivery_time: str, items: list, tota
         )
         oid = conn.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
     return int(oid)
+
