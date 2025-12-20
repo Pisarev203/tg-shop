@@ -1,3 +1,4 @@
+python-3.11.9
 import os, json
 from aiogram import Bot, Dispatcher, executor, types
 import db
@@ -37,3 +38,4 @@ async def order(m):
     await m.answer("Заказ принят")
 
 executor.start_polling(dp)
+
