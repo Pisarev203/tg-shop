@@ -1,18 +1,21 @@
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
-from pathlib import Path
-import db
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+import os
 
 app = FastAPI()
 
-BASE_DIR = Path(__file__).resolve().parent
-
-db.init_db()
+# Подключаем static
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
 def index():
-    return FileResponse(str(BASE_DIR / "index.html"))
+    return FileResponse("index.html")
 
+# тестовый API
 @app.get("/api/products")
-def api_products():
-    return db.products()
+def get_products():
+    return JSONResponse([
+        {"id": 1, "name": "Товар 1", "price": 100},
+        {"id": 2, "name": "Товар 2", "price": 200}
+    ])
