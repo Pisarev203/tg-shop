@@ -218,3 +218,14 @@ def update_product(
 def delete_product(pid: int) -> None:
     with _conn() as conn:
         conn.execute("DELETE FROM products WHERE id=?", (int(pid),))
+
+import json
+
+def create_order(tg_user: str, metro: str, delivery_time: str, items: list, total: int) -> int:
+    with _conn() as conn:
+        conn.execute(
+            "INSERT INTO orders(tg_user, metro, delivery_time, items_json, total) VALUES(?,?,?,?,?)",
+            (tg_user or "", metro or "", delivery_time or "", json.dumps(items, ensure_ascii=False), int(total or 0)),
+        )
+        oid = conn.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
+    return int(oid)
