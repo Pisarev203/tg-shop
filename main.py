@@ -1,3 +1,4 @@
+from fastapi import Body
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -164,5 +165,6 @@ def admin_delete_product(pid: int, req: Request):
     require_admin(req)
     db.delete_product(pid)
     return JSONResponse({"ok": True})
+
 
 
