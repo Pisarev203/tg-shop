@@ -1,200 +1,188 @@
 # db.py
-from __future__ import annotations
-
-import json
-import os
 import sqlite3
-from contextlib import contextmanager
+from pathlib import Path
 from datetime import datetime
-from typing import Any, Dict, List, Optional
 
-# --- путь к базе (Render/локально одинаково нормально) ---
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
-DB_PATH = os.path.join(DATA_DIR, "shop.db")
+BASE_DIR = Path(__file__).resolve().parent
+DB_PATH = BASE_DIR / "shop.db"
 
 
-def _ensure_dirs() -> None:
-    os.makedirs(DATA_DIR, exist_ok=True)
-
-
-@contextmanager
-def _conn():
-    _ensure_dirs()
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+def get_conn():
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    try:
-        yield conn
-        conn.commit()
-    finally:
-        conn.close()
+    return conn
 
 
-def init_db() -> None:
-    """Создаёт таблицы, если их нет."""
-    with _conn() as conn:
-        conn.execute("PRAGMA journal_mode=WAL;")
-        conn.execute("PRAGMA foreign_keys=ON;")
+def init_db():
+    conn = get_conn()
+    cur = conn.cursor()
 
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS categories (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                sort INTEGER NOT NULL DEFAULT 0
-            );
-            """
-        )
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS categories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        sort INTEGER DEFAULT 0
+    )
+    """)
 
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS products (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                price INTEGER NOT NULL DEFAULT 0,
-                description TEXT NOT NULL DEFAULT '',
-                photo TEXT NOT NULL DEFAULT '',
-                category_id INTEGER NULL,
-                is_active INTEGER NOT NULL DEFAULT 1,
-                FOREIGN KEY(category_id) REFERENCES categories(id) ON DELETE SET NULL
-            );
-            """
-        )
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS products (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        price INTEGER NOT NULL,
+        description TEXT,
+        photo TEXT,
+        category_id INTEGER,
+        is_active INTEGER DEFAULT 1
+    )
+    """)
 
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS orders (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                created_at TEXT NOT NULL,
-                customer_name TEXT NOT NULL DEFAULT '',
-                customer_phone TEXT NOT NULL DEFAULT '',
-                customer_address TEXT NOT NULL DEFAULT '',
-                comment TEXT NOT NULL DEFAULT '',
-                items_json TEXT NOT NULL DEFAULT '[]',
-                total INTEGER NOT NULL DEFAULT 0,
-                status TEXT NOT NULL DEFAULT 'new'
-            );
-            """
-        )
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS orders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        created_at TEXT,
+        tg_user TEXT,
+        metro TEXT,
+        delivery_time TEXT,
+        items TEXT,
+        total INTEGER
+    )
+    """)
+
+    conn.commit()
+    conn.close()
 
 
-# ----------------- helpers -----------------
+# ---------- Categories ----------
 
-def _row_to_dict(row: sqlite3.Row) -> Dict[str, Any]:
-    return dict(row) if row is not None else {}
-
-
-# ----------------- Public API -----------------
-
-def list_public_products() -> List[Dict[str, Any]]:
-    """
-    Публичный список товаров для магазина.
-    Возвращает только активные товары, с названием категории.
-    """
-    with _conn() as conn:
-        rows = conn.execute(
-            """
-            SELECT
-                p.id, p.name, p.price, p.description, p.photo,
-                p.category_id,
-                p.is_active,
-                c.name AS category,
-                COALESCE(c.sort, 0) AS cat_sort
-            FROM products p
-            LEFT JOIN categories c ON c.id = p.category_id
-            WHERE p.is_active = 1
-            ORDER BY cat_sort ASC, c.name ASC, p.id DESC;
-            """
-        ).fetchall()
-
+def list_categories():
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT id, name, sort FROM categories ORDER BY sort ASC, id ASC"
+    ).fetchall()
+    conn.close()
     return [dict(r) for r in rows]
 
 
-# ----------------- Admin API: Categories -----------------
-
-def list_categories() -> List[Dict[str, Any]]:
-    with _conn() as conn:
-        rows = conn.execute(
-            "SELECT id, name, sort FROM categories ORDER BY sort ASC, id ASC;"
-        ).fetchall()
-    return [dict(r) for r in rows]
-
-
-def create_category(name: str, sort: int = 0) -> Dict[str, Any]:
-    name = (name or "").strip()
+def create_category(name: str, sort: int = 0):
+    name = name.strip()
     if not name:
         raise ValueError("Название категории пустое")
 
-    with _conn() as conn:
-        cur = conn.execute(
-            "INSERT INTO categories(name, sort) VALUES(?, ?);",
-            (name, int(sort)),
-        )
-        cat_id = cur.lastrowid
-        row = conn.execute(
-            "SELECT id, name, sort FROM categories WHERE id=?;",
-            (cat_id,),
-        ).fetchone()
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO categories (name, sort) VALUES (?, ?)",
+        (name, sort)
+    )
+    conn.commit()
 
-    return _row_to_dict(row)
+    row = cur.execute(
+        "SELECT id, name, sort FROM categories WHERE id=?",
+        (cur.lastrowid,)
+    ).fetchone()
 
-
-def update_category(cat_id: int, name: str, sort: int = 0) -> None:
-    name = (name or "").strip()
-    if not name:
-        raise ValueError("Название категории пустое")
-
-    with _conn() as conn:
-        conn.execute(
-            "UPDATE categories SET name=?, sort=? WHERE id=?;",
-            (name, int(sort), int(cat_id)),
-        )
+    conn.close()
+    return dict(row)
 
 
-def delete_category(cat_id: int) -> None:
-    with _conn() as conn:
-        # у товаров категорию обнулим
-        conn.execute(
-            "UPDATE products SET category_id=NULL WHERE category_id=?;",
-            (int(cat_id),),
-        )
-        conn.execute("DELETE FROM categories WHERE id=?;", (int(cat_id),))
+def update_category(cat_id: int, name: str, sort: int = 0):
+    conn = get_conn()
+    conn.execute(
+        "UPDATE categories SET name=?, sort=? WHERE id=?",
+        (name.strip(), sort, cat_id)
+    )
+    conn.commit()
+    conn.close()
 
 
-# ----------------- Admin API: Products -----------------
+def delete_category(cat_id: int):
+    conn = get_conn()
+    conn.execute("UPDATE products SET category_id=NULL WHERE category_id=?", (cat_id,))
+    conn.execute("DELETE FROM categories WHERE id=?", (cat_id,))
+    conn.commit()
+    conn.close()
 
-def list_products_admin() -> List[Dict[str, Any]]:
-    """Список товаров для админки (все товары, включая неактивные)."""
-    with _conn() as conn:
+
+# ---------- Products ----------
+
+def list_products(active_only: bool = True):
+    conn = get_conn()
+    if active_only:
         rows = conn.execute(
-            """
-            SELECT
-                p.id, p.name, p.price, p.description, p.photo,
-                p.category_id,
-                p.is_active,
-                c.name AS category
-            FROM products p
-            LEFT JOIN categories c ON c.id = p.category_id
-            ORDER BY p.id DESC;
-            """
+            "SELECT * FROM products WHERE is_active=1 ORDER BY id DESC"
         ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM products ORDER BY id DESC"
+        ).fetchall()
+    conn.close()
     return [dict(r) for r in rows]
 
 
-def create_product(
-    name: str,
-    price: int = 0,
-    description: str = "",
-    photo: str = "",
-    category_id: Optional[int] = None,
-    is_active: bool = True,
-) -> Dict[str, Any]:
-    name = (name or "").strip()
-    if not name:
-        raise ValueError("Название товара пустое")
+def add_product(name, price, description, image_url, category_id):
+    conn = get_conn()
+    conn.execute("""
+        INSERT INTO products (name, price, description, photo, category_id, is_active)
+        VALUES (?, ?, ?, ?, ?, 1)
+    """, (name, price, description, image_url, category_id))
+    conn.commit()
+    conn.close()
 
-    with _conn() as conn:
-        cur = conn.execute(
-            """
-            INSERT INTO products(name, price, description, photo, category_id, is_active)
-            VALUES(?, ?, ?, ?,
+
+def create_product(name, price, description="", photo="", category_id=None, is_active=True):
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO products (name, price, description, photo, category_id, is_active)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (name, price, description, photo, category_id, int(is_active)))
+    conn.commit()
+
+    row = cur.execute(
+        "SELECT * FROM products WHERE id=?",
+        (cur.lastrowid,)
+    ).fetchone()
+
+    conn.close()
+    return dict(row)
+
+
+def update_product(pid, name, price, description="", photo="", category_id=None, is_active=True):
+    conn = get_conn()
+    conn.execute("""
+        UPDATE products
+        SET name=?, price=?, description=?, photo=?, category_id=?, is_active=?
+        WHERE id=?
+    """, (name, price, description, photo, category_id, int(is_active), pid))
+    conn.commit()
+    conn.close()
+
+
+def delete_product(pid):
+    conn = get_conn()
+    conn.execute("DELETE FROM products WHERE id=?", (pid,))
+    conn.commit()
+    conn.close()
+
+
+# ---------- Orders ----------
+
+def create_order(tg_user, metro, delivery_time, items, total):
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO orders (created_at, tg_user, metro, delivery_time, items, total)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (
+        datetime.utcnow().isoformat(),
+        tg_user,
+        metro,
+        delivery_time,
+        str(items),
+        total
+    ))
+    conn.commit()
+    order_id = cur.lastrowid
+    conn.close()
+    return order_id
