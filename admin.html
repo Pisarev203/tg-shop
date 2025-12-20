@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="ru">
 <head>
@@ -26,9 +25,11 @@
     .list{margin-top:10px;border-top:1px solid var(--line);padding-top:10px;display:grid;gap:8px}
     .item{border:1px solid var(--line);border-radius:14px;padding:10px;display:grid;gap:8px}
     .muted{color:var(--muted);font-size:12px}
-    .topbar{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}
-    .token{display:flex;gap:8px;align-items:center}
+    .topbar{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap}
+    .token{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .token input{max-width:240px}
+    .ok{display:inline-flex;gap:6px;align-items:center}
+    .dot{width:10px;height:10px;border-radius:50%;background:#3ddc84;display:inline-block}
   </style>
 </head>
 <body>
@@ -36,36 +37,18 @@
     <div class="topbar">
       <div>
         <h1>Админка</h1>
-        <div class="muted">Добавляй категории и товары — они сразу появятся в магазине.</div>
+        <div class="muted">Добавляй товары — они появятся в магазине (если твой публичный список берётся из /api/products).</div>
       </div>
       <div class="token">
         <input id="token" placeholder="ADMIN_TOKEN"/>
         <button class="ghost" id="saveToken">Сохранить</button>
+        <span class="muted ok"><span class="dot"></span>Online</span>
       </div>
     </div>
 
     <div class="grid">
       <div class="card">
-        <h1>Категории</h1>
-        <div class="row">
-          <div>
-            <label>Название</label>
-            <input id="catName" placeholder="Напр. Витрина"/>
-          </div>
-          <div>
-            <label>Сортировка (меньше = выше)</label>
-            <input id="catSort" type="number" value="0"/>
-          </div>
-          <div class="btns">
-            <button class="primary" id="addCat">Добавить категорию</button>
-            <button class="ghost" id="reloadAll1">Обновить</button>
-          </div>
-        </div>
-        <div class="list" id="catsList"></div>
-      </div>
-
-      <div class="card">
-        <h1>Товары</h1>
+        <h1>Добавить товар</h1>
         <div class="row">
           <div>
             <label>Название</label>
@@ -76,25 +59,30 @@
             <input id="pPrice" type="number" value="0"/>
           </div>
           <div>
-            <label>Категория</label>
-            <select id="pCat"></select>
+            <label>Категория (как в Swagger поле category)</label>
+            <input id="pCategory" placeholder="Напр. Витрина"/>
           </div>
           <div>
-            <label>Фото (URL)</label>
+            <label>Фото (URL) (как в Swagger поле photo_url)</label>
             <input id="pPhoto" placeholder="https://...jpg"/>
           </div>
           <div>
             <label>Описание</label>
             <textarea id="pDesc" placeholder="Описание товара…"></textarea>
           </div>
-          <div>
-            <label><input type="checkbox" id="pActive" checked/> Активен (показывать в магазине)</label>
-          </div>
+
           <div class="btns">
-            <button class="primary" id="addProd">Добавить товар</button>
-            <button class="ghost" id="reloadAll2">Обновить</button>
+            <button class="primary" id="addProd">Добавить</button>
+            <button class="ghost" id="reloadPublic">Обновить список</button>
           </div>
+
+          <div class="muted" id="status"></div>
         </div>
+      </div>
+
+      <div class="card">
+        <h1>Товары (публичный список)</h1>
+        <div class="muted">Берём из <code>/api/products</code>. Если у тебя другой путь — скажи, подстрою.</div>
         <div class="list" id="prodsList"></div>
       </div>
     </div>
@@ -102,177 +90,50 @@
 
 <script>
   const $ = (id)=>document.getElementById(id);
+
+  // === НАСТРОЙКИ ПУТЕЙ ===
+  const ADD_PRODUCT_URL = "/admin/add-product";  // как в Swagger
+  const PUBLIC_PRODUCTS_URL = "/api/products";    // публичный список
+
   const tokenEl = $("token");
   const saveTokenBtn = $("saveToken");
-
-  const catName = $("catName");
-  const catSort = $("catSort");
-  const addCat = $("addCat");
-  const catsList = $("catsList");
+  const statusEl = $("status");
 
   const pName = $("pName");
   const pPrice = $("pPrice");
-  const pCat = $("pCat");
+  const pCategory = $("pCategory");
   const pPhoto = $("pPhoto");
   const pDesc = $("pDesc");
-  const pActive = $("pActive");
+
   const addProd = $("addProd");
+  const reloadPublic = $("reloadPublic");
   const prodsList = $("prodsList");
 
-  const reloadAll1 = $("reloadAll1");
-  const reloadAll2 = $("reloadAll2");
-
   tokenEl.value = localStorage.getItem("ADMIN_TOKEN") || "";
+
   saveTokenBtn.onclick = ()=>{
     localStorage.setItem("ADMIN_TOKEN", tokenEl.value.trim());
     alert("Сохранено");
   };
 
-  function headers(){
-    const t = (localStorage.getItem("ADMIN_TOKEN")||"").trim();
-    return {"Content-Type":"application/json","X-Admin-Token": t};
+  function adminHeaders(){
+    const t = (localStorage.getItem("ADMIN_TOKEN") || "").trim();
+    return {"X-Admin-Token": t};
   }
 
-  async function j(url, opts={}){
+  async function fetchText(url, opts={}){
     const r = await fetch(url, opts);
-    if(!r.ok){
-      const txt = await r.text();
-      throw new Error(`${r.status}: ${txt}`);
-    }
-    return await r.json();
+    const txt = await r.text();
+    if(!r.ok) throw new Error(`${r.status}: ${txt}`);
+    return txt;
   }
 
-  async function loadCats(){
-    const cats = await j("/api/admin/categories", {headers: headers()});
-    catsList.innerHTML = "";
-    pCat.innerHTML = <option value="">(без категории)</option>;
-
-    for(const c of cats){
-      pCat.innerHTML += <option value="${c.id}">${escapeHtml(c.name)} (sort ${c.sort})</option>;
-      catsList.innerHTML += `
-        <div class="item">
-          <div><b>#${c.id}</b> ${escapeHtml(c.name)} <span class="muted">(sort ${c.sort})</span></div>
-          <div class="btns">
-            <button class="ghost" onclick="editCat(${c.id}, '${escJs(c.name)}', ${c.sort})">Изменить</button>
-            <button class="danger" onclick="delCat(${c.id})">Удалить</button>
-          </div>
-        </div>
-      `;
-    }
+  async function fetchJson(url, opts={}){
+    const r = await fetch(url, opts);
+    const txt = await r.text();
+    if(!r.ok) throw new Error(`${r.status}: ${txt}`);
+    try { return JSON.parse(txt); } catch { return txt; }
   }
-
-  async function loadProds(){
-    const prods = await j("/api/admin/products", {headers: headers()});
-    prodsList.innerHTML = "";
-    for(const p of prods){
-      prodsList.innerHTML += `
-        <div class="item">
-          <div><b>#${p.id}</b> ${escapeHtml(p.name)} — <b>${p.price} ₽</b> <span class="muted">${p.category?(" / "+escapeHtml(p.category)):""}</span></div>
-          <div class="muted">${escapeHtml(p.description||"")}</div>
-          <div class="muted">${p.photo?("Фото: "+escapeHtml(p.photo)):""}</div>
-          <div class="muted">Активен: ${p.is_active ? "да" : "нет"}</div>
-          <div class="btns">
-            <button class="ghost" onclick="fillProd(${p.id})">Редактировать</button>
-            <button class="danger" onclick="delProd(${p.id})">Удалить</button>
-          </div>
-        </div>
-      `;
-    }
-    window.__prods = prods;
-  }
-
-  window.editCat = async (id, name, sort)=>{
-    const newName = prompt("Название категории:", name);
-    if(newName === null) return;
-    const newSort = prompt("Сортировка:", String(sort));
-    if(newSort === null) return;
-    await j(`/api/admin/categories/${id}`, {
-      method:"PUT",
-      headers: headers(),
-      body: JSON.stringify({name: newName, sort: Number(newSort||0)})
-    });
-    await loadCats();
-    await loadProds();
-  };
-
-  window.delCat = async (id)=>{
-    if(!confirm("Удалить категорию? (у товаров категория станет пустой)")) return;
-    await j(`/api/admin/categories/${id}`, {method:"DELETE", headers: headers()});
-    await loadCats();
-    await loadProds();
-  };
-
-  addCat.onclick = async ()=>{
-    await j("/api/admin/categories", {
-      method:"POST",
-      headers: headers(),
-      body: JSON.stringify({name: catName.value, sort: Number(catSort.value||0)})
-    });
-    catName.value = "";
-    catSort.value = "0";
-    await loadCats();
-  };
-
-  window.fillProd = (id)=>{
-    const p = (window.__prods||[]).find(x=>x.id===id);
-    if(!p) return;
-    pName.value = p.name;
-    pPrice.value = p.price;
-    pDesc.value = p.description || "";
-    pPhoto.value = p.photo || "";
-    pActive.checked = !!p.is_active;
-    pCat.value = p.category_id ? String(p.category_id) : "";
-    addProd.textContent = "Сохранить изменения";
-
-addProd.dataset.editId = String(id);
-    window.scrollTo({top:0, behavior:"smooth"});
-  };
-
-  window.delProd = async (id)=>{
-    if(!confirm("Удалить товар?")) return;
-    await j(`/api/admin/products/${id}`, {method:"DELETE", headers: headers()});
-    await loadProds();
-  };
-
-  addProd.onclick = async ()=>{
-    const payload = {
-      name: pName.value,
-      price: Number(pPrice.value||0),
-      description: pDesc.value,
-      photo: pPhoto.value,
-      category_id: pCat.value ? Number(pCat.value) : null,
-      is_active: !!pActive.checked
-    };
-
-    const editId = addProd.dataset.editId;
-    if(editId){
-      await j(`/api/admin/products/${editId}`, {
-        method:"PUT",
-        headers: headers(),
-        body: JSON.stringify(payload)
-      });
-      addProd.textContent = "Добавить товар";
-      delete addProd.dataset.editId;
-    }else{
-      await j("/api/admin/products", {
-        method:"POST",
-        headers: headers(),
-        body: JSON.stringify(payload)
-      });
-    }
-
-    pName.value = "";
-    pPrice.value = "0";
-    pDesc.value = "";
-    pPhoto.value = "";
-    pCat.value = "";
-    pActive.checked = true;
-
-    await loadProds();
-  };
-
-  reloadAll1.onclick = async ()=>{ await loadCats(); };
-  reloadAll2.onclick = async ()=>{ await loadCats(); await loadProds(); };
 
   function escapeHtml(s){
     return String(s||"")
@@ -282,19 +143,70 @@ addProd.dataset.editId = String(id);
       .replaceAll('"',"&quot;")
       .replaceAll("'","&#039;");
   }
-  function escJs(s){
-    return String(s||"").replaceAll("\\","\\\\").replaceAll("'","\\'");
+
+  async function loadPublic(){
+    prodsList.innerHTML = "";
+    try{
+      const data = await fetchJson(PUBLIC_PRODUCTS_URL);
+      const arr = Array.isArray(data) ? data : [];
+      if(arr.length === 0){
+        prodsList.innerHTML = `<div class="muted">Пока пусто. Добавь товар слева.</div>`;
+        return;
+      }
+      for(const p of arr){
+        prodsList.innerHTML += `
+          <div class="item">
+            <div><b>${escapeHtml(p.name)}</b> — <b>${escapeHtml(p.price)} ₽</b></div>
+            <div class="muted">${escapeHtml(p.description||"")}</div>
+            <div class="muted">${p.photo ? ("Фото: " + escapeHtml(p.photo)) : ""}</div>
+            <div class="muted">${p.category ? ("Категория: " + escapeHtml(p.category)) : ""}</div>
+          </div>
+        `;
+      }
+    }catch(e){
+      prodsList.innerHTML = `<div class="muted">Ошибка загрузки списка: ${escapeHtml(e.message)}</div>`;
+    }
   }
 
-  (async ()=>{
+  addProd.onclick = async ()=>{
+    statusEl.textContent = "";
     try{
-      await loadCats();
-      await loadProds();
+      const params = new URLSearchParams();
+      // ВАЖНО: имена полей должны совпасть со Swagger (/admin/add-product)
+      params.set("name", pName.value.trim());
+      params.set("price", String(Number(pPrice.value || 0)));
+      params.set("category", pCategory.value.trim());
+      params.set("photo_url", pPhoto.value.trim());
+      params.set("description", pDesc.value.trim());
+
+      await fetchText(ADD_PRODUCT_URL, {
+        method: "POST",
+        headers: {
+          ...adminHeaders(),
+          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
+        },
+        body: params.toString()
+      });
+
+      pName.value = "";
+      pPrice.value = "0";
+      pCategory.value = "";
+      pPhoto.value = "";
+      pDesc.value = "";
+
+      statusEl.textContent = "✅ Товар добавлен";
+      await loadPublic();
     }catch(e){
-      alert("Ошибка админки: " + e.message + "\n\nПроверь ADMIN_TOKEN в Render и введи его сверху.");
+      statusEl.textContent = "❌ Ошибка: " + e.message + " (проверь ADMIN_TOKEN и поля как в Swagger)";
       console.error(e);
+      alert("Ошибка добавления товара:\n" + e.message);
     }
-  })();
+  };
+
+  reloadPublic.onclick = loadPublic;
+
+  // старт
+  loadPublic();
 </script>
 </body>
 </html>
