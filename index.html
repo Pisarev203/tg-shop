@@ -1,588 +1,413 @@
-
 <!doctype html>
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Магазин</title>
-
-  <!-- Telegram Mini App SDK -->
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
   <style>
     :root{
-      --bg: #0f1115;
-      --card:#151923;
-      --text:#e8ecf3;
-      --muted:#9aa3b2;
-      --line: rgba(255,255,255,.08);
-      --accent:#2ea6ff;
-      --accent2:#20d08a;
-      --danger:#ff4d4d;
-      --shadow: 0 10px 30px rgba(0,0,0,.35);
-      --radius: 16px;
+      --bg:#0f1115; --card:#151923; --text:#e8ecf3; --muted:#9aa3b2;
+      --line:rgba(255,255,255,.08); --accent:#2ea6ff; --danger:#ff4d4d; --r:16px;
     }
     *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0;
-      font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-      background: radial-gradient(1200px 700px at 50% -200px, rgba(46,166,255,.25), transparent 60%),
-                  radial-gradient(900px 600px at 10% 20%, rgba(32,208,138,.14), transparent 55%),
-                  var(--bg);
-      color:var(--text);
-    }
-
-    .wrap{max-width:980px;margin:0 auto;padding:16px 14px 110px}
-    .top{
-      display:flex;align-items:center;justify-content:space-between;gap:12px;
-      position:sticky;top:0;z-index:20;
-      padding:12px 0 10px;
-      backdrop-filter: blur(10px);
-    }
-    .brand{
-      display:flex;flex-direction:column;gap:2px;
-    }
-    .brand h1{margin:0;font-size:18px;letter-spacing:.2px}
-    .brand .sub{font-size:12px;color:var(--muted)}
-    .pill{
-      display:inline-flex;align-items:center;gap:8px;
-      padding:8px 10px;border:1px solid var(--line);border-radius:999px;
-      background:rgba(255,255,255,.04);
-    }
-    .pill b{font-size:13px}
-    .pill .dot{
-      width:8px;height:8px;border-radius:50%;
-      background:var(--accent2);
-      box-shadow:0 0 0 4px rgba(32,208,138,.15);
-    }
-
-    .grid{
-      display:grid;
-      grid-template-columns: 1fr;
-      gap:12px;
-      margin-top:10px;
-    }
-    @media(min-width:720px){
-      .grid{grid-template-columns: 1fr 1fr}
-    }
-
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text)}
+    .wrap{max-width:1060px;margin:0 auto;padding:16px}
+    .top{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;margin-bottom:14px}
+    h1{margin:0;font-size:18px}
+    .muted{color:var(--muted);font-size:12px;line-height:1.4}
+    .grid{display:grid;gap:12px;grid-template-columns:1fr}
+    @media(min-width:920px){.grid{grid-template-columns: 1fr 360px}}
     .card{
       border:1px solid var(--line);
-      border-radius:var(--radius);
-      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
-      box-shadow: var(--shadow);
-      overflow:hidden;
-      display:flex;gap:12px;
-      padding:12px;
-      min-height:118px;
-    }
-    .img{
-      width:92px;height:92px;flex:0 0 92px;
-      border-radius:14px;
-      background:rgba(255,255,255,.06);
-      border:1px solid var(--line);
-      overflow:hidden;
-      display:grid;place-items:center;
-      color:rgba(255,255,255,.35);
-      font-size:12px;
-    }
-    .img img{width:100%;height:100%;object-fit:cover;display:block}
-
-    .info{flex:1;display:flex;flex-direction:column;gap:6px;min-width:0}
-    .name{font-weight:700;font-size:15px;line-height:1.25;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .desc{color:var(--muted);font-size:12px;line-height:1.35;margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-    .row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:auto}
-    .price{font-weight:800}
-    .qty{
-      display:flex;align-items:center;gap:8px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.04);
-      border-radius:999px;
-      padding:6px 8px;
-    }
-    .btn{
-      border:0;
-      background:transparent;
-      color:var(--text);
-      font-weight:800;
-      width:30px;height:30px;border-radius:999px;
-      display:grid;place-items:center;
-      cursor:pointer;
-      transition:.15s;
-    }
-    .btn:hover{background:rgba(255,255,255,.08)}
-    .btn:active{transform:scale(.96)}
-    .count{min-width:18px;text-align:center;font-weight:800}
-
-    /* Bottom cart */
-    .bottom{
-      position:fixed;left:0;right:0;bottom:0;z-index:30;
-      padding:10px 14px calc(10px + env(safe-area-inset-bottom));
-      background:rgba(10,12,16,.72);
-      border-top:1px solid var(--line);
-      backdrop-filter: blur(12px);
-    }
-    .bar{
-      max-width:980px;margin:0 auto;
-
-display:flex;gap:10px;align-items:center;justify-content:space-between;
-    }
-    .bar .sum{
-      display:flex;flex-direction:column;gap:2px;
-      min-width:0;
-    }
-    .bar .sum .t{font-size:12px;color:var(--muted)}
-    .bar .sum .v{font-size:16px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .primary{
-      border:0;
-      background:linear-gradient(135deg, var(--accent), #6d5cff);
-      color:#fff;
-      font-weight:900;
-      padding:12px 14px;
-      border-radius:14px;
-      cursor:pointer;
-      min-width:150px;
-      box-shadow: 0 14px 30px rgba(46,166,255,.22);
-      transition:.15s;
-    }
-    .primary:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
-    .primary:active{transform:translateY(1px)}
-
-    /* Modal */
-    .overlay{
-      position:fixed;inset:0;z-index:50;
-      background:rgba(0,0,0,.55);
-      display:none;
-      align-items:flex-end;
-      padding:14px 14px calc(14px + env(safe-area-inset-bottom));
-    }
-    .overlay.show{display:flex}
-    .modal{
-      width:100%;
-      max-width:980px;
-      margin:0 auto;
-      border-radius:18px;
-      border:1px solid var(--line);
       background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
-      box-shadow: var(--shadow);
-      overflow:hidden;
+      border-radius:var(--r);
+      padding:12px;
     }
-    .modalHead{
-      padding:14px 14px 10px;
-      display:flex;align-items:center;justify-content:space-between;gap:10px;
-      border-bottom:1px solid var(--line);
-    }
-    .modalHead h2{margin:0;font-size:16px}
-    .x{
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.04);
-      color:var(--text);
-      width:38px;height:38px;border-radius:12px;
-      cursor:pointer;
-      display:grid;place-items:center;
-    }
-    .modalBody{padding:12px 14px;display:grid;gap:10px}
-    .field{display:grid;gap:6px}
-    label{font-size:12px;color:var(--muted)}
-    input,textarea,select{
-      width:100%;
-      border:1px solid var(--line);
-      background:rgba(0,0,0,.25);
-      color:var(--text);
-      padding:12px 12px;
-      border-radius:14px;
-      outline:none;
-      font-size:14px;
-    }
-    textarea{min-height:88px;resize:none}
-    .mini{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .items{
+    .products{display:grid;gap:10px;grid-template-columns:1fr}
+    @media(min-width:700px){.products{grid-template-columns:1fr 1fr}}
+    .p{
       border:1px solid var(--line);
       border-radius:14px;
       padding:10px;
-      background:rgba(255,255,255,.03);
-      display:grid;gap:8px;
+      display:grid;
+      gap:8px;
+      background:rgba(0,0,0,.18);
     }
-    .it{
-      display:flex;align-items:center;justify-content:space-between;gap:10px;
-      font-size:13px;
-    }
-    .it .l{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .it .r{font-weight:800;white-space:nowrap}
-    .modalFoot{
-      padding:12px 14px;
-      border-top:1px solid var(--line);
-      display:flex;gap:10px;justify-content:space-between;align-items:center;
-    }
-    .ghost{
+    .phead{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+    .pname{font-weight:900}
+    .pcat{font-size:12px;color:var(--muted)}
+    .pdesc{font-size:12px;color:var(--muted);white-space:pre-wrap}
+    .pimg{
+      width:100%;
+      height:170px;
+      border-radius:12px;
+      object-fit:cover;
       border:1px solid var(--line);
       background:rgba(255,255,255,.04);
-      color:var(--text);
-      padding:12px 14px;border-radius:14px;
-      cursor:pointer;
-      font-weight:900;
     }
-
-    .empty{
-      border:1px dashed rgba(255,255,255,.18);
-      border-radius:var(--radius);
-      padding:16px;
-      color:var(--muted);
-      text-align:center;
-      margin-top:12px;
+    .btns{display:flex;gap:8px;flex-wrap:wrap}
+    button{
+      border:0;border-radius:12px;padding:10px 12px;font-weight:900;cursor:pointer;
+      background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--line);
     }
+    button.primary{background:linear-gradient(135deg,var(--accent),#6d5cff);color:#fff;border:0}
+    button.danger{background:rgba(255,77,77,.15);color:#ffb0b0;border:1px solid rgba(255,77,77,.35)}
+    button:disabled{opacity:.5;cursor:not-allowed}
+    input,textarea{
+      width:100%;border:1px solid var(--line);background:rgba(0,0,0,.25);color:var(--text);
+      padding:10px;border-radius:12px;outline:none
+    }
+    textarea{min-height:70px;resize:none}
+    .row{display:grid;gap:8px}
+    .cartList{display:grid;gap:8px;margin-top:10px}
+    .ci{border:1px solid var(--line);border-radius:14px;padding:10px;display:grid;gap:6px;background:rgba(0,0,0,.18)}
+    .ciTop{display:flex;justify-content:space-between;gap:10px}
+    .qty{display:flex;gap:6px;align-items:center}
+    .qty button{padding:6px 10px;border-radius:10px}
+    .sum{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+    .pill{display:inline-flex;gap:8px;align-items:center;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.04);font-size:12px;color:var(--muted)}
+    .status{margin-top:10px;font-size:12px;color:var(--muted);white-space:pre-wrap}
+    .empty{padding:14px;border:1px dashed var(--line);border-radius:14px;color:var(--muted);text-align:center}
   </style>
 </head>
-
 <body>
   <div class="wrap">
     <div class="top">
-      <div class="brand">
+      <div>
         <h1>Магазин</h1>
-        <div class="sub" id="subtitle">Загружаю товары…</div>
+        <div class="muted" id="subtitle">Загружаю товары…</div>
       </div>
-
-      <div class="pill" title="Статус">
-        <span class="dot"></span>
-        <b>Online</b>
-      </div>
+      <div class="pill" id="tgBadge" style="display:none;">Telegram WebApp</div>
     </div>
 
-    <div id="grid" class="grid"></div>
-    <div id="empty" class="empty" style="display:none;">
-      Товаров пока нет. Добавь товары через админку — и они появятся тут.
-    </div>
-  </div>
-
-  <!-- Bottom bar -->
-  <div class="bottom">
-    <div class="bar">
-      <div class="sum">
-        <div class="t">В корзине: <span id="cartCount">0</span></div>
-        <div class="v">Итого: <span id="cartTotal">0</span> ₽</div>
-      </div>
-      <button id="checkoutBtn" class="primary" disabled>Оформить</button>
-    </div>
-  </div>
-
-  <!-- Modal -->
-<div id="overlay" class="overlay" role="dialog" aria-modal="true">
-    <div class="modal">
-      <div class="modalHead">
-        <h2>Оформление заказа</h2>
-        <button class="x" id="closeModal" aria-label="Закрыть">✕</button>
+    <div class="grid">
+      <!-- ТОВАРЫ -->
+      <div class="card">
+        <div class="btns" style="justify-content:space-between;align-items:center;">
+          <div class="muted">Товары</div>
+          <button id="reloadBtn">Обновить</button>
+        </div>
+        <div id="products" class="products" style="margin-top:10px;"></div>
+        <div id="productsEmpty" class="empty" style="display:none;margin-top:10px;">Товаров пока нет. Добавь их в админке.</div>
       </div>
 
-      <div class="modalBody">
-        <div class="items" id="orderItems"></div>
+      <!-- КОРЗИНА -->
+      <div class="card">
+        <div class="muted">Корзина</div>
 
-        <div class="mini">
-          <div class="field">
-            <label>Метро</label>
-            <input id="metro" placeholder="Напр. Таганская" />
+        <div class="row" style="margin-top:10px;">
+          <div>
+            <div class="muted" style="margin-bottom:6px;">Метро</div>
+            <input id="metro" placeholder="Напр. Площадь Ленина" />
           </div>
-          <div class="field">
-            <label>Время</label>
-            <input id="time" placeholder="Напр. 19:30" />
+          <div>
+            <div class="muted" style="margin-bottom:6px;">Время</div>
+            <input id="time" placeholder="Напр. 18:30" />
           </div>
         </div>
 
-        <div class="field">
-          <label>Комментарий</label>
-          <textarea id="comment" placeholder="Подъезд, этаж, код домофона, пожелания…"></textarea>
-        </div>
-      </div>
+        <div id="cart" class="cartList"></div>
+        <div id="cartEmpty" class="empty" style="margin-top:10px;">Корзина пустая</div>
 
-      <div class="modalFoot">
-        <button class="ghost" id="clearCart">Очистить</button>
-        <button class="primary" id="sendOrder">Отправить заказ</button>
+        <div class="sum">
+          <div>
+            <div class="muted">Итого</div>
+            <div style="font-weight:900;font-size:18px;" id="total">0 ₽</div>
+          </div>
+          <div class="btns">
+            <button class="danger" id="clearBtn" disabled>Очистить</button>
+            <button class="primary" id="checkoutBtn" disabled>Оформить</button>
+          </div>
+        </div>
+
+        <div class="status" id="status"></div>
       </div>
     </div>
   </div>
 
-  <script>
-    // Telegram init
-    const tg = window.Telegram?.WebApp;
-    if (tg) {
-      tg.expand();
-      tg.ready();
-    }
+<script>
+  // ------- Telegram WebApp (не обязательно) -------
+  const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+  if (tg) {
+    document.getElementById("tgBadge").style.display = "inline-flex";
+    try { tg.ready(); } catch(e){}
+  }
 
-    const grid = document.getElementById('grid');
-    const empty = document.getElementById('empty');
-    const subtitle = document.getElementById('subtitle');
+  const subtitle = document.getElementById("subtitle");
+  const productsEl = document.getElementById("products");
+  const productsEmpty = document.getElementById("productsEmpty");
 
-    const cartCount = document.getElementById('cartCount');
-    const cartTotal = document.getElementById('cartTotal');
-    const checkoutBtn = document.getElementById('checkoutBtn');
+  const cartEl = document.getElementById("cart");
+  const cartEmpty = document.getElementById("cartEmpty");
+  const totalEl = document.getElementById("total");
+  const statusEl = document.getElementById("status");
 
-    const overlay = document.getElementById('overlay');
-    const closeModal = document.getElementById('closeModal');
-    const orderItemsEl = document.getElementById('orderItems');
+  const metroEl = document.getElementById("metro");
+  const timeEl  = document.getElementById("time");
 
-    const metroEl = document.getElementById('metro');
-    const timeEl = document.getElementById('time');
-    const commentEl = document.getElementById('comment');
+  const reloadBtn = document.getElementById("reloadBtn");
+  const clearBtn  = document.getElementById("clearBtn");
+  const checkoutBtn = document.getElementById("checkoutBtn");
 
-    const clearCartBtn = document.getElementById('clearCart');
-    const sendOrderBtn = document.getElementById('sendOrder');
+  let products = [];
+  let cart = []; // [{id,name,price,qty}]
 
-    // cart state: { [id]: qty }
-    let products = [];
-    let cart = loadCart();
+  const rub = (n)=> `${Number(n||0)} ₽`;
 
-    function loadCart() {
-      try { return JSON.parse(localStorage.getItem('cart') || '{}'); }
-      catch { return {}; }
-    }
-    function saveCart() {
-      localStorage.setItem('cart', JSON.stringify(cart));
-    }
+  function setStatus(msg){
+    statusEl.textContent = msg || "";
+  }
 
-    function rub(n){ return (n || 0).toString(); }
+  function calcTotal(){
+    return cart.reduce((s,i)=> s + (Number(i.price||0) * Number(i.qty||0)), 0);
+  }
 
-    function qtyOf(id){ return cart[id] || 0; }
+  function saveCart(){
+    localStorage.setItem("CART", JSON.stringify(cart));
+  }
+  function loadCart(){
+    try{
+      cart = JSON.parse(localStorage.getItem("CART") || "[]") || [];
+    }catch{ cart = []; }
+  }
 
-    function setQty(id, qty){
-      if (qty <= 0) delete cart[id];
-      else cart[id] = qty;
-      saveCart();
-      render();
-    }
+  function renderProducts(){
+    productsEl.innerHTML = "";
+    productsEmpty.style.display = products.length ? "none" : "block";
 
-    function calcTotals(){
-      let count = 0;
-      let total = 0;
-      for (const [id, qty] of Object.entries(cart)){
-        const p = products.find(x => String(x.id) === String(id));
-        if (!p) continue;
-        count += qty;
-        total += (Number(p.price) || 0) * qty;
-      }
-      return {count, total};
-    }
+    for(const p of products){
+      const div = document.createElement("div");
+      div.className = "p";
 
-    function productCard(p){
-      const id = String(p.id);
-      const qty = qtyOf(id);
+      const img = document.createElement("img");
+      img.className = "pimg";
+      img.alt = p.name || "Фото";
+      img.loading = "lazy";
+      img.src = p.photo || "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450">
+          <rect width="100%" height="100%" fill="#1b2130"/>
+          <text x="50%" y="50%" fill="#9aa3b2" font-size="28" font-family="Arial" dominant-baseline="middle" text-anchor="middle">
+            Нет фото
+          </text>
+        </svg>`
+      );
 
-      const imgHtml = p.photo
-        ? <img src="${p.photo}" alt="">
-        : <span>без фото</span>;
-
-      const desc = p.description || "";
-
-      return `
-        <div class="card">
-          <div class="img">${imgHtml}</div>
-          <div class="info">
-            <p class="name" title="${escapeHtml(p.name  '')}">${escapeHtml(p.name  '')}</p>
-            <p class="desc">${escapeHtml(desc)}</p>
-            <div class="row">
-              <div class="price">${rub(p.price)} ₽</div>
-              <div class="qty">
-                <button class="btn" data-act="minus" data-id="${id}">−</button>
-                <div class="count" id="q_${id}">${qty}</div>
-                <button class="btn" data-act="plus" data-id="${id}">+</button>
-              </div>
-            </div>
-          </div>
+      const head = document.createElement("div");
+      head.className = "phead";
+      head.innerHTML = `
+        <div>
+          <div class="pname">${escapeHtml(p.name)}</div>
+          <div class="pcat">${p.category ? escapeHtml(p.category) : ""}</div>
         </div>
+        <div style="font-weight:900">${rub(p.price)}</div>
       `;
-    }
 
-    function render(){
-      // grid
-      if (!products.length){
-        grid.innerHTML = "";
-        empty.style.display = "block";
-        subtitle.textContent = "Товаров нет";
-      } else {
-        empty.style.display = "none";
-        grid.innerHTML = products.map(productCard).join("");
-        subtitle.
-textContent = "Выбирай товары и оформляй заказ";
-      }
+      const desc = document.createElement("div");
+      desc.className = "pdesc";
+      desc.textContent = p.description || "";
 
-      // totals
-      const t = calcTotals();
-      cartCount.textContent = t.count;
-      cartTotal.textContent = t.total;
+      const btns = document.createElement("div");
+      btns.className = "btns";
 
-      checkoutBtn.disabled = (t.count === 0);
+      const inCart = cart.find(x => x.id === p.id);
+      const btn = document.createElement("button");
+      btn.className = "primary";
+      btn.textContent = inCart ? "Добавлено" : "В корзину";
+      btn.disabled = !!inCart;
 
-      // bind card buttons
-      grid.querySelectorAll('button[data-act]').forEach(btn=>{
-        btn.onclick = () => {
-          const id = btn.dataset.id;
-          const act = btn.dataset.act;
-          const cur = qtyOf(id);
-          if (act === "plus") setQty(id, cur + 1);
-          if (act === "minus") setQty(id, cur - 1);
-        };
-      });
-    }
-
-    function openModal(){
-      // fill items list
-      const lines = [];
-      let total = 0;
-
-      for (const [id, qty] of Object.entries(cart)){
-        const p = products.find(x => String(x.id) === String(id));
-        if (!p) continue;
-        const sum = (Number(p.price) || 0) * qty;
-        total += sum;
-
-        lines.push(`
-          <div class="it">
-            <div class="l">${escapeHtml(p.name)} × ${qty}</div>
-            <div class="r">${sum} ₽</div>
-          </div>
-        `);
-      }
-
-      if (!lines.length){
-        orderItemsEl.innerHTML = <div class="it"><div class="l">Корзина пуста</div><div class="r">0 ₽</div></div>;
-      } else {
-        lines.push(`
-          <div class="it" style="padding-top:8px;border-top:1px solid rgba(255,255,255,.08)">
-            <div class="l" style="color:#e8ecf3;font-weight:900">Итого</div>
-            <div class="r">${total} ₽</div>
-          </div>
-        `);
-        orderItemsEl.innerHTML = lines.join("");
-      }
-
-      overlay.classList.add('show');
-    }
-
-    function close(){
-      overlay.classList.remove('show');
-    }
-
-    checkoutBtn.onclick = openModal;
-    closeModal.onclick = close;
-
-    overlay.addEventListener('click', (e)=>{
-      if (e.target === overlay) close();
-    });
-
-    clearCartBtn.onclick = ()=>{
-      cart = {};
-      saveCart();
-      render();
-      openModal(); // обновим модалку
-    };
-
-    sendOrderBtn.onclick = ()=>{
-      const t = calcTotals();
-      if (t.count === 0) return;
-
-      const items = Object.entries(cart).map(([id, qty]) => {
-        const p = products.find(x => String(x.id) === String(id));
-        return {
-          id: Number(id),
-          name: p?.name || "",
-          price: Number(p?.price) || 0,
-          qty: qty
-        };
-      });
-
-      const payload = {
-        type: "order",
-        items,
-        total: t.total,
-        metro: metroEl.value.trim(),
-        time: timeEl.value.trim(),
-        comment: commentEl.value.trim()
+      btn.onclick = ()=>{
+        addToCart(p.id);
       };
 
-      // отправляем в Telegram bot через WebAppData
-      if (tg) {
-        tg.sendData(JSON.stringify(payload));
-        tg.close();
-      } else {
-        // если открыто в обычном браузере
-        alert("Заказ сформирован (не Telegram). Данные:\n" + JSON.stringify(payload, null, 2));
+      btns.appendChild(btn);
+
+      div.appendChild(img);
+      div.appendChild(head);
+      if (p.description) div.appendChild(desc);
+      div.appendChild(btns);
+
+      productsEl.appendChild(div);
+    }
+  }
+
+  function renderCart(){
+    cartEl.innerHTML = "";
+    cartEmpty.style.display = cart.length ? "none" : "block";
+
+    for(const item of cart){
+      const row = document.createElement("div");
+      row.className = "ci";
+
+      row.innerHTML = `
+        <div class="ciTop">
+          <div style="font-weight:900">${escapeHtml(item.name)}</div>
+          <div style="font-weight:900">${rub(item.price)}</div>
+        </div>
+        <div class="qty">
+          <button type="button" data-act="dec">-</button>
+          <div style="min-width:26px;text-align:center;font-weight:900">${item.qty}</div>
+          <button type="button" data-act="inc">+</button>
+          <button type="button" class="danger" data-act="del" style="margin-left:auto;">Удалить</button>
+        </div>
+      `;
+
+      row.querySelector('[data-act="dec"]').onclick = ()=> changeQty(item.id, -1);
+      row.querySelector('[data-act="inc"]').onclick = ()=> changeQty(item.id, +1);
+      row.querySelector('[data-act="del"]').onclick = ()=> removeFromCart(item.id);
+
+      cartEl.appendChild(row);
+    }
+
+    const total = calcTotal();
+    totalEl.textContent = rub(total);
+
+    clearBtn.disabled = cart.length === 0;
+    checkoutBtn.disabled = cart.length === 0;
+  }
+
+  function addToCart(pid){
+    const p = products.find(x => x.id === pid);
+    if(!p) return;
+    cart.push({id:p.id, name:p.name, price:Number(p.price||0), qty:1});
+    saveCart();
+    renderProducts();
+    renderCart();
+  }
+
+  function changeQty(pid, delta){
+    const it = cart.find(x => x.id === pid);
+    if(!it) return;
+    it.qty = Math.max(1, Number(it.qty||1) + delta);
+    saveCart();
+    renderCart();
+  }
+
+  function removeFromCart(pid){
+    cart = cart.filter(x => x.id !== pid);
+    saveCart();
+    renderProducts();
+    renderCart();
+  }
+
+  function clearCart(){
+    cart = [];
+    saveCart();
+    renderProducts();
+    renderCart();
+  }
+
+  function escapeHtml(s){
+    return String(s||"")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+  async function loadProducts(){
+    setStatus("");
+    subtitle.textContent = "Загружаю товары…";
+    try{
+      const r = await fetch("/api/products", {cache:"no-store"});
+      if(!r.ok){
+        const txt = await r.text();
+        throw new Error(`${r.status} ${r.statusText}: ${txt}`);
       }
+      const ct = r.headers.get("content-type") || "";
+      let data;
+      if(ct.includes("application/json")){
+        data = await r.json();
+      }else{
+        const txt = await r.text();
+        throw new Error("Ответ не JSON: " + txt);
+      }
+
+      const arr = Array.isArray(data) ? data : (data.products || []);
+      products = arr.map(p => ({
+        id: p.id,
+        name: p.name ?? p.title ?? "Без названия",
+        price: Number(p.price ?? 0),
+        description: p.description ?? p.desc ?? "",
+        photo: p.photo ?? p.image_url ?? p.image ?? p.img ?? "",
+        category: p.category ?? p.category_name ?? ""
+      }));
+
+      subtitle.textContent = products.length ? "Выбери товары и оформи заказ" : "Товаров пока нет";
+      renderProducts();
+      renderCart();
+    }catch(e){
+      subtitle.textContent = "Ошибка загрузки товаров";
+      products = [];
+      renderProducts();
+      setStatus("Не удалось загрузить товары:\n" + (e?.message || e));
+      console.error(e);
+    }
+  }
+
+  async function checkout(){
+    setStatus("");
+    const metro = (metroEl.value || "").trim();
+    const time  = (timeEl.value || "").trim();
+    if(!metro){ setStatus("Укажи метро"); metroEl.focus(); return; }
+    if(!time){ setStatus("Укажи время"); timeEl.focus(); return; }
+    if(cart.length === 0){ setStatus("Корзина пустая"); return; }
+
+    // tg username (если есть)
+    const tgUser = tg?.initDataUnsafe?.user?.username
+      ? ("@" + tg.initDataUnsafe.user.username)
+      : "";
+
+    const payload = {
+      tg_user: tgUser,
+      metro,
+      time,
+      items: cart.map(i => ({ id:i.id, name:i.name, price:i.price, qty:i.qty })),
+      total: calcTotal()
     };
 
-    function escapeHtml(s){
-      return String(s || "")
-        .replaceAll("&","&amp;")
-        .replaceAll("<","&lt;")
-        .replaceAll(">","&gt;")
-        .replaceAll('"',"&quot;")
-        .replaceAll("'","&#039;");
-    }
+    try{
+      checkoutBtn.disabled = true;
 
-    async function loadProducts(){
-      try{
-        const r = await fetch("/api/products", {cache:"no-store"});
-        const data = await r.json();
+      const r = await fetch("/api/order", {
+        method:"POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(payload)
+      });
 
-        // поддержим разные форматы:
-        // 1) [{id,name,price,description,photo,category}]
-        // 2) {products:[...]}
-        products = Array.isArray(data) ? data : (data.products || []);
-        // нормализуем поля
-        products = products.map(p => ({
-          id: p.id,
-          name: p.name ?? p.title ?? "Без названия",
-          price: p.price ?? 0,
-          description: p.description ?? p.desc ?? "",
-          photo: p.photo ?? p.image ?? p.img ?? "",
-          category: p.category ?? ""
-        }));
-
-        render();
-      }catch(e){
-        subtitle.textContent = "Ошибка загрузки товаров";
-        grid.innerHTML = "";
-        empty.style.display = "block";
-        empty.textContent = "Не удалось загрузить товары. Проверь /api/products";
-        console.error(e);
+      if(!r.ok){
+        const txt = await r.text();
+        throw new Error(`${r.status} ${r.statusText}: ${txt}`);
       }
+
+      const data = await r.json().catch(()=> ({}));
+      const orderId = data.order_id ?? "";
+      setStatus("✅ Заказ оформлен" + (orderId ? ` (№${orderId})` : ""));
+
+      clearCart();
+
+      // Telegram: можно закрыть миниапп или показать popup
+      if(tg){
+        try{ tg.showPopup({title:"Готово", message:"Заказ отправлен!", buttons:[{type:"ok"}]}); }catch(e){}
+      }
+
+    }catch(e){
+      setStatus("❌ Ошибка оформления:\n" + (e?.message || e));
+      console.error(e);
+    }finally{
+      checkoutBtn.disabled = (cart.length === 0);
     }
+  }
 
-    // старт
-loadProducts();
-    render();
-  </script>
-  <script>
-const checkoutBtn = document.getElementById("checkoutBtn");
+  // events
+  reloadBtn.onclick = loadProducts;
+  clearBtn.onclick = clearCart;
+  checkoutBtn.onclick = checkout;
 
-checkoutBtn.addEventListener("click", async () => {
-    const order = {
-        tg_user: "test_user", // позже заменим на Telegram ID
-        metro: document.getElementById("metro")?.value || "",
-        time: document.getElementById("time")?.value || "",
-        items: window.cart || [],
-        total: window.cartTotal || 0
-    };
-
-    const res = await fetch("/api/order", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify(order)
-    });
-
-    const data = await res.json();
-
-    if (data.ok) {
-        alert("Заказ оформлен! №" + data.order_id);
-        window.cart = [];
-        window.cartTotal = 0;
-        location.reload();
-    } else {
-        alert("Ошибка при оформлении");
-    }
-});
+  // init
+  loadCart();
+  loadProducts();
+  renderCart();
 </script>
 </body>
 </html>
-
