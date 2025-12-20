@@ -41,6 +41,17 @@ def admin_add_product(
 ):
     db.add_product(name, price, description, image_url, category_id)
     return {"ok": True}
+    
+@app.post("/api/order")
+def create_order(data: dict = Body(...)):
+    order_id = db.create_order(
+        tg_user=data.get("tg_user", ""),
+        metro=data.get("metro", ""),
+        delivery_time=data.get("time", ""),
+        items=data.get("items", []),
+        total=data.get("total", 0),
+    )
+    return {"ok": True, "order_id": order_id}
 
 def require_admin(req: Request):
     token = os.environ.get("ADMIN_TOKEN", "").strip()
@@ -153,4 +164,5 @@ def admin_delete_product(pid: int, req: Request):
     require_admin(req)
     db.delete_product(pid)
     return JSONResponse({"ok": True})
+
 
