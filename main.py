@@ -11,7 +11,7 @@ db.init_db()
 
 @app.get("/")
 def index():
-    return FileResponse(BASE_DIR / "index.html")
+    return FileResponse(str(BASE_DIR / "index.html"))
 
 @app.get("/api/products")
 def api_products():
