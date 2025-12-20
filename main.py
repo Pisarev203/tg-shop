@@ -16,6 +16,31 @@ static_dir = BASE_DIR / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
+from fastapi import Form
+
+ADMIN_TOKEN = "Sm03052604!"  # 👉 потом поменяешь
+
+def admin_auth(request: Request):
+    token = request.headers.get("x-admin-token")
+    if token != ADMIN_TOKEN:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+@app.get("/admin")
+def admin_page():
+    return FileResponse("admin.html")
+
+
+@app.post("/admin/add-product")
+def admin_add_product(
+    name: str = Form(...),
+    price: int = Form(...),
+    description: str = Form(""),
+    image_url: str = Form(""),
+    category_id: int = Form(1),
+):
+    db.add_product(name, price, description, image_url, category_id)
+    return {"ok": True}
 
 def require_admin(req: Request):
     token = os.environ.get("ADMIN_TOKEN", "").strip()
@@ -128,3 +153,4 @@ def admin_delete_product(pid: int, req: Request):
     require_admin(req)
     db.delete_product(pid)
     return JSONResponse({"ok": True})
+
