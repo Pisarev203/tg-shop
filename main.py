@@ -1,69 +1,99 @@
-from fastapi import Body
-from fastapi import FastAPI, HTTPException, Request
+
+from fastapi import FastAPI, HTTPException, Request, Body
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 import os
+import json
+import urllib.request
+import urllib.parse
 
 import db
 
 app = FastAPI()
 BASE_DIR = Path(__file__).resolve().parent
 
+# ---------- Init DB ----------
 db.init_db()
 
-# Не падаем, если папки static нет
+# ---------- Static (если есть папка static) ----------
 static_dir = BASE_DIR / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
-from fastapi import Form
 
-ADMIN_TOKEN = "Sm03052604!"  # 👉 потом поменяешь
-
-def admin_auth(request: Request):
-    token = request.headers.get("x-admin-token")
-    if token != ADMIN_TOKEN:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-
-
-@app.get("/admin")
-def admin_page():
-    return FileResponse("admin.html")
-
-
-@app.post("/admin/add-product")
-def admin_add_product(
-    name: str = Form(...),
-    price: int = Form(...),
-    description: str = Form(""),
-    image_url: str = Form(""),
-    category_id: int = Form(1),
-):
-    db.add_product(name, price, description, image_url, category_id)
-    return {"ok": True}
-    
-@app.post("/api/order")
-def create_order(data: dict = Body(...)):
-    order_id = db.create_order(
-        tg_user=data.get("tg_user", ""),
-        metro=data.get("metro", ""),
-        delivery_time=data.get("time", ""),
-        items=data.get("items", []),
-        total=data.get("total", 0),
-    )
-    return {"ok": True, "order_id": order_id}
-
+# ---------- Helpers ----------
 def require_admin(req: Request):
     token = os.environ.get("ADMIN_TOKEN", "").strip()
     if not token:
-        # Чтобы не забыли поставить пароль
         raise HTTPException(500, "ADMIN_TOKEN не задан в переменных окружения Render")
     got = (req.headers.get("X-Admin-Token") or "").strip()
     if got != token:
         raise HTTPException(401, "Unauthorized")
 
 
+def tg_send(text: str):
+    """
+    Отправка сообщения в Telegram (без сторонних библиотек).
+    Нужны переменные окружения:
+    TG_BOT_TOKEN и TG_CHAT_ID
+    """
+    bot_token = os.environ.get("TG_BOT_TOKEN", "").strip()
+    chat_id = os.environ.get("TG_CHAT_ID", "").strip()
+
+    if not bot_token or not chat_id:
+        # Если не настроено — просто ничего не отправляем (и не ломаем заказ)
+        return
+
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True,
+    }
+
+    data = urllib.parse.urlencode(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=data, method="POST")
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        _ = resp.read()
+
+
+def format_order_for_tg(order_id: int, data: dict) -> str:
+    tg_user = (data.get("tg_user") or "").strip()
+    metro = (data.get("metro") or "").strip()
+    delivery_time = (data.get("time") or data.get("delivery_time") or "").strip()
+    items = data.get("items") or []
+    total = data.get("total") or 0
+
+    lines = []
+    lines.append(f"🛒 <b>Новый заказ</b> #{order_id}")
+    if tg_user:
+        lines.append(f"👤 <b>Клиент:</b> {tg_user}")
+    if metro:
+        lines.append(f"🚇 <b>Метро:</b> {metro}")
+    if delivery_time:
+        lines.append(f"⏰ <b>Время:</b> {delivery_time}")
+
+    lines.append("")
+    lines.append("📦 <b>Состав:</b>")
+
+    if isinstance(items, list) and items:
+        for it in items:
+            name = (it.get("name") or "Товар").strip()
+            qty = int(it.get("qty") or 1)
+            price = int(it.get("price") or 0)
+            lines.append(f"• {name} × {qty} = {price * qty} ₽")
+    else:
+        lines.append("• (пусто)")
+
+    lines.append("")
+    lines.append(f"💰 <b>Итого:</b> {total} ₽")
+
+    return "\n".join(lines)
+
+
+# ---------- Pages ----------
 @app.get("/")
 def index():
     return FileResponse(str(BASE_DIR / "index.html"))
@@ -74,13 +104,33 @@ def admin_page():
     return FileResponse(str(BASE_DIR / "admin.html"))
 
 
+# ---------- Public API ----------
 @app.get("/api/products")
 def api_products():
     return JSONResponse(db.list_products(active_only=True))
 
 
-# -------- Admin: categories --------
+@app.post("/api/order")
+def create_order(data: dict = Body(...)):
+    order_id = db.create_order(
+        tg_user=data.get("tg_user", ""),
+        metro=data.get("metro", ""),
+        delivery_time=data.get("time", "") or data.get("delivery_time", ""),
+        items=data.get("items", []),
+        total=data.get("total", 0),
+    )
 
+    # Отправка в Telegram
+    try:
+        tg_send(format_order_for_tg(order_id, data))
+    except Exception:
+        # Не ломаем заказ, даже если TG упал
+        pass
+
+    return {"ok": True, "order_id": order_id}
+
+
+# ---------- Admin API: Categories ----------
 @app.get("/api/admin/categories")
 def admin_list_categories(req: Request):
     require_admin(req)
@@ -115,8 +165,7 @@ def admin_delete_category(cat_id: int, req: Request):
     return JSONResponse({"ok": True})
 
 
-# -------- Admin: products --------
-
+# ---------- Admin API: Products ----------
 @app.get("/api/admin/products")
 def admin_list_products(req: Request):
     require_admin(req)
@@ -165,6 +214,4 @@ def admin_delete_product(pid: int, req: Request):
     require_admin(req)
     db.delete_product(pid)
     return JSONResponse({"ok": True})
-
-
 
