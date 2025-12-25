@@ -4,4 +4,5 @@ requests==2.32.3
 python-multipart==0.0.9
 fastapi
 uvicorn
-psycopg[binary]
+psycopg[binary]==3.2.9
+
