@@ -1,188 +1,129 @@
-# db.py
-import sqlite3
-from pathlib import Path
+import os
+import psycopg
+from psycopg.rows import dict_row
 from datetime import datetime
 
-BASE_DIR = Path(__file__).resolve().parent
-DB_PATH = BASE_DIR / "shop.db"
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL не задан")
 
 def get_conn():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
+    return psycopg.connect(DATABASE_URL, row_factory=dict_row)
 
 def init_db():
-    conn = get_conn()
-    cur = conn.cursor()
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS categories (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL,
+                sort INTEGER DEFAULT 0
+            );
+            """)
 
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS categories (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        sort INTEGER DEFAULT 0
-    )
-    """)
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS products (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL,
+                price INTEGER NOT NULL,
+                description TEXT,
+                photo TEXT,
+                category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
+                is_active BOOLEAN DEFAULT TRUE
+            );
+            """)
 
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS products (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        price INTEGER NOT NULL,
-        description TEXT,
-        photo TEXT,
-        category_id INTEGER,
-        is_active INTEGER DEFAULT 1
-    )
-    """)
-
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS orders (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        created_at TEXT,
-        tg_user TEXT,
-        metro TEXT,
-        delivery_time TEXT,
-        items TEXT,
-        total INTEGER
-    )
-    """)
-
-    conn.commit()
-    conn.close()
-
-
-# ---------- Categories ----------
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS orders (
+                id SERIAL PRIMARY KEY,
+                created_at TIMESTAMP,
+                tg_user TEXT,
+                metro TEXT,
+                delivery_time TEXT,
+                items JSONB,
+                total INTEGER
+            );
+            """)
 
 def list_categories():
-    conn = get_conn()
-    rows = conn.execute(
-        "SELECT id, name, sort FROM categories ORDER BY sort ASC, id ASC"
-    ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM categories ORDER BY sort, id")
+            return cur.fetchall()
 
+def create_category(name, sort=0):
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO categories (name, sort) VALUES (%s,%s) RETURNING *",
+                (name.strip(), sort)
+            )
+            return cur.fetchone()
 
-def create_category(name: str, sort: int = 0):
-    name = name.strip()
-    if not name:
-        raise ValueError("Название категории пустое")
+def update_category(cat_id, name, sort=0):
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE categories SET name=%s, sort=%s WHERE id=%s",
+                (name.strip(), sort, cat_id)
+            )
 
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute(
-        "INSERT INTO categories (name, sort) VALUES (?, ?)",
-        (name, sort)
-    )
-    conn.commit()
+def delete_category(cat_id):
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM categories WHERE id=%s", (cat_id,))
 
-    row = cur.execute(
-        "SELECT id, name, sort FROM categories WHERE id=?",
-        (cur.lastrowid,)
-    ).fetchone()
-
-    conn.close()
-    return dict(row)
-
-
-def update_category(cat_id: int, name: str, sort: int = 0):
-    conn = get_conn()
-    conn.execute(
-        "UPDATE categories SET name=?, sort=? WHERE id=?",
-        (name.strip(), sort, cat_id)
-    )
-    conn.commit()
-    conn.close()
-
-
-def delete_category(cat_id: int):
-    conn = get_conn()
-    conn.execute("UPDATE products SET category_id=NULL WHERE category_id=?", (cat_id,))
-    conn.execute("DELETE FROM categories WHERE id=?", (cat_id,))
-    conn.commit()
-    conn.close()
-
-
-# ---------- Products ----------
-
-def list_products(active_only: bool = True):
-    conn = get_conn()
+def list_products(active_only=True):
+    q = "SELECT * FROM products"
     if active_only:
-        rows = conn.execute(
-            "SELECT * FROM products WHERE is_active=1 ORDER BY id DESC"
-        ).fetchall()
-    else:
-        rows = conn.execute(
-            "SELECT * FROM products ORDER BY id DESC"
-        ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
-
-
-def add_product(name, price, description, image_url, category_id):
-    conn = get_conn()
-    conn.execute("""
-        INSERT INTO products (name, price, description, photo, category_id, is_active)
-        VALUES (?, ?, ?, ?, ?, 1)
-    """, (name, price, description, image_url, category_id))
-    conn.commit()
-    conn.close()
-
+        q += " WHERE is_active=TRUE"
+    q += " ORDER BY id DESC"
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(q)
+            return cur.fetchall()
 
 def create_product(name, price, description="", photo="", category_id=None, is_active=True):
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO products (name, price, description, photo, category_id, is_active)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (name, price, description, photo, category_id, int(is_active)))
-    conn.commit()
-
-    row = cur.execute(
-        "SELECT * FROM products WHERE id=?",
-        (cur.lastrowid,)
-    ).fetchone()
-
-    conn.close()
-    return dict(row)
-
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO products
+                (name, price, description, photo, category_id, is_active)
+                VALUES (%s,%s,%s,%s,%s,%s)
+                RETURNING *
+            """, (name, price, description, photo, category_id, is_active))
+            return cur.fetchone()
 
 def update_product(pid, name, price, description="", photo="", category_id=None, is_active=True):
-    conn = get_conn()
-    conn.execute("""
-        UPDATE products
-        SET name=?, price=?, description=?, photo=?, category_id=?, is_active=?
-        WHERE id=?
-    """, (name, price, description, photo, category_id, int(is_active), pid))
-    conn.commit()
-    conn.close()
-
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE products
+                SET name=%s, price=%s, description=%s, photo=%s,
+                    category_id=%s, is_active=%s
+                WHERE id=%s
+            """, (name, price, description, photo, category_id, is_active, pid))
 
 def delete_product(pid):
-    conn = get_conn()
-    conn.execute("DELETE FROM products WHERE id=?", (pid,))
-    conn.commit()
-    conn.close()
-
-
-# ---------- Orders ----------
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM products WHERE id=%s", (pid,))
 
 def create_order(tg_user, metro, delivery_time, items, total):
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO orders (created_at, tg_user, metro, delivery_time, items, total)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (
-        datetime.utcnow().isoformat(),
-        tg_user,
-        metro,
-        delivery_time,
-        str(items),
-        total
-    ))
-    conn.commit()
-    order_id = cur.lastrowid
-    conn.close()
-    return order_id
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO orders
+                (created_at, tg_user, metro, delivery_time, items, total)
+                VALUES (%s,%s,%s,%s,%s,%s)
+                RETURNING id
+            """, (
+                datetime.utcnow(),
+                tg_user,
+                metro,
+                delivery_time,
+                items,
+                total
+            ))
+            return cur.fetchone()["id"]
