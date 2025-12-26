@@ -1,8 +1,7 @@
 import os
 import requests
 from pathlib import Path
-
-from fastapi import FastAPI, Body, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -11,93 +10,103 @@ import db
 app = FastAPI()
 BASE_DIR = Path(__file__).resolve().parent
 
-# ---------- DB ----------
+# init db
 db.init_db()
 
-# ---------- Static ----------
+# статика (если есть папка static)
 static_dir = BASE_DIR / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
-# ---------- Admin auth ----------
+# токен админки: берём из ENV, если нет — используем дефолт (чтобы не было 500)
+DEFAULT_ADMIN_TOKEN = "Sm03052604!"
+def get_admin_token():
+    return (os.getenv("ADMIN_TOKEN") or DEFAULT_ADMIN_TOKEN).strip()
+
 def require_admin(req: Request):
-    token = (os.environ.get("ADMIN_TOKEN") or "").strip()
-    if not token:
-        raise HTTPException(500, "ADMIN_TOKEN не задан в переменных окружения Railway")
     got = (req.headers.get("X-Admin-Token") or "").strip()
-    if got != token:
+    if got != get_admin_token():
         raise HTTPException(401, "Unauthorized")
 
-# ---------- TG ----------
+# Telegram notify
 TG_BOT_TOKEN = (os.getenv("TG_BOT_TOKEN") or "").strip()
 TG_CHAT_ID = (os.getenv("TG_CHAT_ID") or "").strip()
 
 def send_to_tg(text: str):
     if not TG_BOT_TOKEN or not TG_CHAT_ID:
-        return
+        return  # просто молча, если не настроено
     url = f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage"
-    requests.post(
-        url,
-        json={
-            "chat_id": TG_CHAT_ID,
-            "text": text,
-            "parse_mode": "HTML",
-            "disable_web_page_preview": True,
-        },
-        timeout=10,
-    )
+    try:
+        requests.post(url, json={"chat_id": TG_CHAT_ID, "text": text}, timeout=10)
+    except Exception:
+        pass
 
-# ---------- Pages ----------
+@app.get("/health")
+def health():
+    return {"ok": True}
+
 @app.get("/")
 def index():
-    f = BASE_DIR / "index.html"
-    if not f.exists():
-        raise HTTPException(404, "index.html не найден рядом с main.py")
-    return FileResponse(str(f))
+    p = BASE_DIR / "index.html"
+    if not p.exists():
+        raise HTTPException(404, "index.html not found")
+    return FileResponse(str(p))
 
 @app.get("/admin")
 def admin_page():
-    f = BASE_DIR / "admin.html"
-    if not f.exists():
-        raise HTTPException(404, "admin.html не найден рядом с main.py")
-    return FileResponse(str(f))
+    p = BASE_DIR / "admin.html"
+    if not p.exists():
+        raise HTTPException(404, "admin.html not found")
+    return FileResponse(str(p))
 
-# ---------- Public API ----------
+# -------- public api --------
+
 @app.get("/api/products")
 def api_products():
     return JSONResponse(db.list_products(active_only=True))
 
-# ---------- Orders ----------
 @app.post("/api/order")
-def create_order(data: dict = Body(...)):
+async def create_order(req: Request):
+    data = await req.json()
+
+    tg_user = data.get("tg_user", "")
+    metro = data.get("metro", "")
+    delivery_time = data.get("time", "") or data.get("delivery_time", "")
     items = data.get("items", [])
+    total = data.get("total", 0)
+
     order_id = db.create_order(
-        tg_user=data.get("tg_user", ""),
-        metro=data.get("metro", ""),
-        delivery_time=data.get("time", ""),
+        tg_user=tg_user,
+        metro=metro,
+        delivery_time=delivery_time,
         items=items,
-        total=int(data.get("total", 0)),
+        total=total,
     )
 
-    text = (
-        f"🛒 <b>Новый заказ #{order_id}</b>\n\n"
-        f"👤 TG: {data.get('tg_user','—')}\n"
-        f"🚇 Метро: {data.get('metro','—')}\n"
-        f"⏰ Время: {data.get('time','—')}\n\n"
-        f"📦 <b>Товары:</b>\n"
-    )
-    for i in items:
-        name = i.get("name", "—")
-        qty = i.get("qty", 1)
-        price = i.get("price", 0)
-        text += f"• {name} × {qty} = {price}₽\n"
-    text += f"\n💰 <b>Итого:</b> {data.get('total', 0)}₽"
+    # текст в TG
+    lines = [f"🛒 Новый заказ #{order_id}"]
+    if tg_user: lines.append(f"👤 TG: {tg_user}")
+    if metro: lines.append(f"🚇 Метро: {metro}")
+    if delivery_time: lines.append(f"⏰ Время: {delivery_time}")
+    lines.append("")
+    lines.append("📦 Товары:")
+    for it in (items or []):
+        try:
+            name = it.get("name", "товар")
+            qty = it.get("qty", 1)
+            price = it.get("price", 0)
+            lines.append(f"• {name} x{qty} = {int(price)*int(qty)}₽")
+        except Exception:
+            lines.append(f"• {str(it)}")
+    lines.append("")
+    lines.append(f"💰 Итого: {total}₽")
 
-    send_to_tg(text)
+    send_to_tg("\n".join(lines))
 
-    return {"ok": True, "order_id": order_id}
+    return JSONResponse({"ok": True, "order_id": order_id})
 
-# ---------- Admin: categories ----------
+# -------- admin api: categories --------
+
 @app.get("/api/admin/categories")
 def admin_list_categories(req: Request):
     require_admin(req)
@@ -128,7 +137,8 @@ def admin_delete_category(cat_id: int, req: Request):
     db.delete_category(cat_id)
     return JSONResponse({"ok": True})
 
-# ---------- Admin: products ----------
+# -------- admin api: products --------
+
 @app.get("/api/admin/products")
 def admin_list_products(req: Request):
     require_admin(req)
