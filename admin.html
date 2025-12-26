@@ -5,43 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Админка</title>
   <style>
-    :root{--bg:#0f1115;--card:#151923;--text:#e8ecf3;--muted:#9aa3b2;--line:rgba(255,255,255,.10);--accent:#2ea6ff;--danger:#ff4d4d;--r:16px}
+    :root{--bg:#0f1115;--card:#151923;--text:#e8ecf3;--muted:#9aa3b2;--line:rgba(255,255,255,.08);--accent:#2ea6ff;--danger:#ff4d4d;--r:16px}
     *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:radial-gradient(1200px 600px at 20% 10%, rgba(46,166,255,.25), transparent 60%), var(--bg);color:var(--text)}
-    .wrap{max-width:1040px;margin:0 auto;padding:16px}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text)}
+    .wrap{max-width:980px;margin:0 auto;padding:16px}
     h1{margin:0 0 10px;font-size:18px}
     .grid{display:grid;gap:12px;grid-template-columns:1fr}
-    @media(min-width:980px){.grid{grid-template-columns:1fr 1fr}}
-    .card{border:1px solid var(--line);background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));border-radius:var(--r);padding:12px;backdrop-filter: blur(6px)}
-    .row{display:grid;gap:10px}
+    @media(min-width:900px){.grid{grid-template-columns:1fr 1fr}}
+    .card{border:1px solid var(--line);background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));border-radius:var(--r);padding:12px}
+    .row{display:grid;gap:8px}
     label{font-size:12px;color:var(--muted)}
-    input,textarea,select{
-      width:100%;
-      border:1px solid var(--line);
-      background:rgba(0,0,0,.25);
-      color:var(--text);
-      padding:10px;
-      border-radius:12px;
-      outline:none
-    }
-    textarea{min-height:80px;resize:vertical}
+    input,textarea,select{width:100%;border:1px solid var(--line);background:rgba(0,0,0,.25);color:var(--text);padding:10px;border-radius:12px;outline:none}
+    textarea{min-height:70px;resize:none}
     .btns{display:flex;gap:8px;flex-wrap:wrap}
     button{border:0;border-radius:12px;padding:10px 12px;font-weight:800;cursor:pointer}
-    button:disabled{opacity:.6;cursor:not-allowed}
     .primary{background:linear-gradient(135deg,var(--accent),#6d5cff);color:#fff}
-    .ghost{background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--line)}
-    .danger{background:rgba(255,77,77,.16);color:#ffb0b0;border:1px solid rgba(255,77,77,.35)}
+    .ghost{background:rgba(255,255,255,.05);color:var(--text);border:1px solid var(--line)}
+    .danger{background:rgba(255,77,77,.15);color:#ffb0b0;border:1px solid rgba(255,77,77,.35)}
     .list{margin-top:10px;border-top:1px solid var(--line);padding-top:10px;display:grid;gap:8px}
     .item{border:1px solid var(--line);border-radius:14px;padding:10px;display:grid;gap:8px}
     .muted{color:var(--muted);font-size:12px}
-    .topbar{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap}
-    .token{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    .token input{max-width:260px}
-    .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.04);font-size:12px;color:var(--muted)}
-    .ok{color:#98ffb3}
-    .err{color:#ffb0b0}
-    .two{display:grid;gap:10px;grid-template-columns:1fr}
-    @media(min-width:480px){.two{grid-template-columns:1fr 1fr}}
+    .topbar{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}
+    .token{display:flex;gap:8px;align-items:center}
+    .token input{max-width:240px}
   </style>
 </head>
 <body>
@@ -49,29 +35,25 @@
     <div class="topbar">
       <div>
         <h1>Админка</h1>
-        <div class="muted">Категории и товары сохраняются на сервере. Товары с <b>Активен</b> показываются в магазине.</div>
+        <div class="muted">Добавляй категории и товары — они сразу появятся в магазине.</div>
       </div>
       <div class="token">
-        <span class="pill" id="status">● <span>проверка…</span></span>
-        <input id="token" placeholder="ADMIN_TOKEN (как в Render)"/>
+        <input id="token" placeholder="ADMIN_TOKEN"/>
         <button class="ghost" id="saveToken">Сохранить</button>
       </div>
     </div>
 
     <div class="grid">
-      <!-- Категории -->
       <div class="card">
         <h1>Категории</h1>
         <div class="row">
-          <div class="two">
-            <div>
-              <label>Название</label>
-              <input id="catName" placeholder="Напр. Витрина"/>
-            </div>
-            <div>
-              <label>Сортировка (меньше = выше)</label>
-              <input id="catSort" type="number" value="0"/>
-            </div>
+          <div>
+            <label>Название</label>
+            <input id="catName" placeholder="Напр. Витрина"/>
+          </div>
+          <div>
+            <label>Сортировка (меньше = выше)</label>
+            <input id="catSort" type="number" value="0"/>
           </div>
           <div class="btns">
             <button class="primary" id="addCat">Добавить категорию</button>
@@ -81,7 +63,6 @@
         <div class="list" id="catsList"></div>
       </div>
 
-      <!-- Товары -->
       <div class="card">
         <h1>Товары</h1>
         <div class="row">
@@ -89,18 +70,14 @@
             <label>Название</label>
             <input id="pName" placeholder="Товар"/>
           </div>
-
-          <div class="two">
-            <div>
-              <label>Цена</label>
-              <input id="pPrice" type="number" value="0"/>
-            </div>
-            <div>
-              <label>Категория</label>
-              <select id="pCat"></select>
-            </div>
+          <div>
+            <label>Цена</label>
+            <input id="pPrice" type="number" value="0"/>
           </div>
-
+          <div>
+            <label>Категория</label>
+            <select id="pCat"></select>
+          </div>
           <div>
             <label>Фото (URL)</label>
             <input id="pPhoto" placeholder="https://...jpg"/>
@@ -112,263 +89,210 @@
           <div>
             <label><input type="checkbox" id="pActive" checked/> Активен (показывать в магазине)</label>
           </div>
-
           <div class="btns">
-            <button class="primary" id="saveProd">Добавить товар</button>
+            <button class="primary" id="addProd">Добавить товар</button>
             <button class="ghost" id="reloadProds">Обновить</button>
           </div>
         </div>
-
         <div class="list" id="prodsList"></div>
       </div>
     </div>
   </div>
 
 <script>
-  const $ = (id)=>document.getElementById(id);
+const $ = (id)=>document.getElementById(id);
 
-  const statusEl = $("status");
-  const tokenEl = $("token");
-  const saveTokenBtn = $("saveToken");
+const tokenEl = $("token");
+const saveTokenBtn = $("saveToken");
 
-  const catName = $("catName");
-  const catSort = $("catSort");
-  const addCatBtn = $("addCat");
-  const reloadCatsBtn = $("reloadCats");
-  const catsList = $("catsList");
+const catName = $("catName");
+const catSort = $("catSort");
+const addCat = $("addCat");
+const catsList = $("catsList");
+const reloadCats = $("reloadCats");
 
-  const pName = $("pName");
-  const pPrice = $("pPrice");
-  const pCat = $("pCat");
-  const pPhoto = $("pPhoto");
-  const pDesc = $("pDesc");
-  const pActive = $("pActive");
-  const saveProdBtn = $("saveProd");
-  const reloadProdsBtn = $("reloadProds");
-  const prodsList = $("prodsList");
+const pName = $("pName");
+const pPrice = $("pPrice");
+const pCat = $("pCat");
+const pPhoto = $("pPhoto");
+const pDesc = $("pDesc");
+const pActive = $("pActive");
+const addProd = $("addProd");
+const prodsList = $("prodsList");
+const reloadProds = $("reloadProds");
 
-  tokenEl.value = localStorage.getItem("ADMIN_TOKEN") || "";
+tokenEl.value = localStorage.getItem("ADMIN_TOKEN") || "";
 
-  saveTokenBtn.onclick = ()=>{
-    localStorage.setItem("ADMIN_TOKEN", tokenEl.value.trim());
-    ping();
-    alert("Токен сохранён");
+saveTokenBtn.onclick = ()=>{
+  localStorage.setItem("ADMIN_TOKEN", tokenEl.value.trim());
+  alert("Сохранено");
+};
+
+function headers(){
+  const t = (localStorage.getItem("ADMIN_TOKEN") || "").trim();
+  return {"Content-Type":"application/json","X-Admin-Token": t};
+}
+
+async function j(url, opts={}){
+  const r = await fetch(url, opts);
+  if(!r.ok){
+    const txt = await r.text();
+    throw new Error(r.status + ": " + txt);
+  }
+  return await r.json();
+}
+
+function escapeHtml(s){
+  return String(s||"")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+function escJs(s){
+  return String(s||"").replaceAll("\\","\\\\").replaceAll("'","\\'");
+}
+
+async function loadCats(){
+  const cats = await j("/api/admin/categories", {headers: headers()});
+  catsList.innerHTML = "";
+  pCat.innerHTML = `<option value="">(без категории)</option>`;
+  for(const c of cats){
+    pCat.innerHTML += `<option value="${c.id}">${escapeHtml(c.name)} (sort ${c.sort})</option>`;
+    catsList.innerHTML += `
+      <div class="item">
+        <div><b>#${c.id}</b> ${escapeHtml(c.name)} <span class="muted">(sort ${c.sort})</span></div>
+        <div class="btns">
+          <button class="ghost" onclick="editCat(${c.id}, '${escJs(c.name)}', ${c.sort})">Изменить</button>
+          <button class="danger" onclick="delCat(${c.id})">Удалить</button>
+        </div>
+      </div>
+    `;
+  }
+}
+
+async function loadProds(){
+  const prods = await j("/api/admin/products", {headers: headers()});
+  prodsList.innerHTML = "";
+  for(const p of prods){
+    prodsList.innerHTML += `
+      <div class="item">
+        <div><b>#${p.id}</b> ${escapeHtml(p.name)} — <b>${p.price} ₽</b> <span class="muted">${p.category?(" / "+escapeHtml(p.category)):""}</span></div>
+        <div class="muted">${escapeHtml(p.description||"")}</div>
+        <div class="muted">${p.photo?("Фото: "+escapeHtml(p.photo)):""}</div>
+        <div class="muted">Активен: ${p.is_active ? "да" : "нет"}</div>
+        <div class="btns">
+          <button class="ghost" onclick="fillProd(${p.id})">Редактировать</button>
+          <button class="danger" onclick="delProd(${p.id})">Удалить</button>
+        </div>
+      </div>
+    `;
+  }
+  window.__prods = prods;
+}
+
+window.editCat = async (id, name, sort)=>{
+  const newName = prompt("Название категории:", name);
+  if(newName === null) return;
+  const newSort = prompt("Сортировка:", String(sort));
+  if(newSort === null) return;
+  await j(`/api/admin/categories/${id}`, {
+    method:"PUT",
+    headers: headers(),
+    body: JSON.stringify({name: newName, sort: Number(newSort||0)})
+  });
+  await loadCats();
+  await loadProds();
+};
+
+window.delCat = async (id)=>{
+  if(!confirm("Удалить категорию? (у товаров категория станет пустой)")) return;
+  await j(`/api/admin/categories/${id}`, {method:"DELETE", headers: headers()});
+  await loadCats();
+  await loadProds();
+};
+
+addCat.onclick = async ()=>{
+  await j("/api/admin/categories", {
+    method:"POST",
+    headers: headers(),
+    body: JSON.stringify({name: catName.value, sort: Number(catSort.value||0)})
+  });
+  catName.value = "";
+  catSort.value = "0";
+  await loadCats();
+};
+
+window.fillProd = (id)=>{
+  const p = (window.__prods||[]).find(x=>x.id===id);
+  if(!p) return;
+  pName.value = p.name;
+  pPrice.value = p.price;
+  pDesc.value = p.description || "";
+  pPhoto.value = p.photo || "";
+  pActive.checked = !!p.is_active;
+  pCat.value = p.category_id ? String(p.category_id) : "";
+  addProd.textContent = "Сохранить изменения";
+  addProd.dataset.editId = String(id);
+  window.scrollTo({top:0, behavior:"smooth"});
+};
+
+window.delProd = async (id)=>{
+  if(!confirm("Удалить товар?")) return;
+  await j(`/api/admin/products/${id}`, {method:"DELETE", headers: headers()});
+  await loadProds();
+};
+
+addProd.onclick = async ()=>{
+  const payload = {
+    name: pName.value,
+    price: Number(pPrice.value||0),
+    description: pDesc.value,
+    photo: pPhoto.value,
+    category_id: pCat.value ? Number(pCat.value) : null,
+    is_active: !!pActive.checked
   };
 
-  function adminHeaders(){
-    const t = (localStorage.getItem("ADMIN_TOKEN") || "").trim();
-    return {
-      "Content-Type":"application/json",
-      "X-Admin-Token": t
-    };
-  }
-
-  async function j(url, opts={}){
-    const r = await fetch(url, opts);
-    const ct = r.headers.get("content-type") || "";
-    const isJson = ct.includes("application/json");
-    const data = isJson ? await r.json().catch(()=>null) : await r.text().catch(()=>null);
-
-    if(!r.ok){
-      const msg = typeof data === "string" ? data : JSON.stringify(data);
-      throw new Error(`${r.status}: ${msg}`);
-    }
-    return data;
-  }
-
-  function escapeHtml(s){
-    return String(s ?? "")
-      .replaceAll("&","&amp;")
-      .replaceAll("<","&lt;")
-      .replaceAll(">","&gt;")
-      .replaceAll('"',"&quot;")
-      .replaceAll("'","&#039;");
-  }
-  function escJs(s){
-    return String(s ?? "").replaceAll("\\","\\\\").replaceAll("'","\\'");
-  }
-
-  async function ping(){
-    try{
-      await j("/api/admin/categories", {headers: adminHeaders()});
-      statusEl.innerHTML = `● <span class="ok">Online</span>`;
-      statusEl.className = "pill";
-    }catch(e){
-      statusEl.innerHTML = `● <span class="err">Нет доступа</span>`;
-      statusEl.className = "pill";
-    }
-  }
-
-  async function loadCats(){
-    const cats = await j("/api/admin/categories", {headers: adminHeaders()});
-    window.__cats = Array.isArray(cats) ? cats : [];
-    catsList.innerHTML = "";
-
-    pCat.innerHTML = `<option value="">(без категории)</option>`;
-    for(const c of window.__cats){
-      pCat.innerHTML += `<option value="${c.id}">${escapeHtml(c.name)} (sort ${c.sort})</option>`;
-
-      catsList.innerHTML += `
-        <div class="item">
-          <div><b>#${c.id}</b> ${escapeHtml(c.name)} <span class="muted">(sort ${c.sort})</span></div>
-          <div class="btns">
-            <button class="ghost" onclick="editCat(${c.id}, '${escJs(c.name)}', ${c.sort})">Изменить</button>
-            <button class="danger" onclick="delCat(${c.id})">Удалить</button>
-          </div>
-        </div>
-      `;
-    }
-  }
-
-  async function loadProds(){
-    const prods = await j("/api/admin/products", {headers: adminHeaders()});
-    window.__prods = Array.isArray(prods) ? prods : [];
-    prodsList.innerHTML = "";
-
-    for(const p of window.__prods){
-      const cat = p.category ? (" / " + escapeHtml(p.category)) : "";
-      const photo = p.photo ? ("Фото: " + escapeHtml(p.photo)) : "";
-      const desc = p.description ? escapeHtml(p.description) : "";
-
-      prodsList.innerHTML += `
-        <div class="item">
-          <div><b>#${p.id}</b> ${escapeHtml(p.name)} — <b>${p.price} ₽</b> <span class="muted">${cat}</span></div>
-          ${desc ? `<div class="muted">${desc}</div>` : ``}
-          ${photo ? `<div class="muted">${photo}</div>` : ``}
-          <div class="muted">Активен: ${p.is_active ? "да" : "нет"}</div>
-          <div class="btns">
-            <button class="ghost" onclick="fillProd(${p.id})">Редактировать</button>
-            <button class="danger" onclick="delProd(${p.id})">Удалить</button>
-          </div>
-        </div>
-      `;
-    }
-  }
-
-  // ---- categories actions ----
-  window.editCat = async (id, name, sort)=>{
-    const newName = prompt("Название категории:", name);
-    if(newName === null) return;
-    const newSort = prompt("Сортировка:", String(sort));
-    if(newSort === null) return;
-
-    await j(`/api/admin/categories/${id}`, {
+  const editId = addProd.dataset.editId;
+  if(editId){
+    await j(`/api/admin/products/${editId}`, {
       method:"PUT",
-      headers: adminHeaders(),
-      body: JSON.stringify({name:newName, sort:Number(newSort || 0)})
+      headers: headers(),
+      body: JSON.stringify(payload)
     });
-
-    await loadCats();
-    await loadProds();
-  };
-
-  window.delCat = async (id)=>{
-    if(!confirm("Удалить категорию? (у товаров категория станет пустой)")) return;
-    await j(`/api/admin/categories/${id}`, {method:"DELETE", headers: adminHeaders()});
-    await loadCats();
-    await loadProds();
-  };
-
-  addCatBtn.onclick = async ()=>{
-    addCatBtn.disabled = true;
-    try{
-      await j("/api/admin/categories", {
-        method:"POST",
-        headers: adminHeaders(),
-        body: JSON.stringify({name:catName.value, sort:Number(catSort.value || 0)})
-      });
-      catName.value = "";
-      catSort.value = "0";
-      await loadCats();
-    }finally{
-      addCatBtn.disabled = false;
-    }
-  };
-
-  reloadCatsBtn.onclick = async ()=>{ await loadCats(); };
-
-  // ---- products actions ----
-  window.fillProd = (id)=>{
-    const p = (window.__prods || []).find(x=>x.id === id);
-    if(!p) return;
-    pName.value = p.name || "";
-    pPrice.value = p.price ?? 0;
-    pDesc.value = p.description || "";
-    pPhoto.value = p.photo || "";
-    pActive.checked = !!p.is_active;
-    pCat.value = p.category_id ? String(p.category_id) : "";
-    saveProdBtn.textContent = "Сохранить изменения";
-    saveProdBtn.dataset.editId = String(id);
-    window.scrollTo({top:0, behavior:"smooth"});
-  };
-
-  window.delProd = async (id)=>{
-    if(!confirm("Удалить товар?")) return;
-    await j(`/api/admin/products/${id}`, {method:"DELETE", headers: adminHeaders()});
-    await loadProds();
-  };
-
-  function clearProdForm(){
-    pName.value = "";
-    pPrice.value = "0";
-    pDesc.value = "";
-    pPhoto.value = "";
-    pCat.value = "";
-    pActive.checked = true;
-    saveProdBtn.textContent = "Добавить товар";
-    delete saveProdBtn.dataset.editId;
+    addProd.textContent = "Добавить товар";
+    delete addProd.dataset.editId;
+  }else{
+    await j("/api/admin/products", {
+      method:"POST",
+      headers: headers(),
+      body: JSON.stringify(payload)
+    });
   }
 
-  saveProdBtn.onclick = async ()=>{
-    const payload = {
-      name: pName.value,
-      price: Number(pPrice.value || 0),
-      description: pDesc.value || "",
-      photo: pPhoto.value || "",
-      category_id: pCat.value ? Number(pCat.value) : null,
-      is_active: !!pActive.checked
-    };
+  pName.value = "";
+  pPrice.value = "0";
+  pDesc.value = "";
+  pPhoto.value = "";
+  pCat.value = "";
+  pActive.checked = true;
 
-    saveProdBtn.disabled = true;
-    try{
-      const editId = saveProdBtn.dataset.editId;
-      if(editId){
-        await j(`/api/admin/products/${editId}`, {
-          method:"PUT",
-          headers: adminHeaders(),
-          body: JSON.stringify(payload)
-        });
-      }else{
-        await j("/api/admin/products", {
-          method:"POST",
-          headers: adminHeaders(),
-          body: JSON.stringify(payload)
-        });
-      }
+  await loadProds();
+};
 
-      clearProdForm();
-      await loadProds();
-    }finally{
-      saveProdBtn.disabled = false;
-    }
-  };
+reloadCats.onclick = loadCats;
+reloadProds.onclick = async ()=>{ await loadCats(); await loadProds(); };
 
-  reloadProdsBtn.onclick = async ()=>{
+(async ()=>{
+  try{
     await loadCats();
     await loadProds();
-  };
-
-  // init
-  (async ()=>{
-    try{
-      await ping();
-      await loadCats();
-      await loadProds();
-    }catch(e){
-      console.error(e);
-      alert("Ошибка админки: " + e.message + "\n\nПроверь токен (ADMIN_TOKEN) и доступность API.");
-    }
-  })();
+  }catch(e){
+    alert("Ошибка админки: " + e.message + "\n\nПроверь ADMIN_TOKEN в Variables Railway (или оставь дефолт) и введи его сверху.");
+    console.error(e);
+  }
+})();
 </script>
 </body>
 </html>
