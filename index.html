@@ -1,413 +1,243 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Магазин</title>
   <style>
-    :root{
-      --bg:#0f1115; --card:#151923; --text:#e8ecf3; --muted:#9aa3b2;
-      --line:rgba(255,255,255,.08); --accent:#2ea6ff; --danger:#ff4d4d; --r:16px;
-    }
+    :root{--bg:#0f1115;--card:#151923;--text:#e8ecf3;--muted:#9aa3b2;--line:rgba(255,255,255,.08);--accent:#2ea6ff;--danger:#ff4d4d;--r:16px}
     *{box-sizing:border-box}
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text)}
-    .wrap{max-width:1060px;margin:0 auto;padding:16px}
-    .top{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;margin-bottom:14px}
-    h1{margin:0;font-size:18px}
-    .muted{color:var(--muted);font-size:12px;line-height:1.4}
+    .wrap{max-width:1100px;margin:0 auto;padding:16px}
+    h1{margin:0;font-size:20px}
+    .muted{color:var(--muted);font-size:12px}
     .grid{display:grid;gap:12px;grid-template-columns:1fr}
-    @media(min-width:920px){.grid{grid-template-columns: 1fr 360px}}
-    .card{
-      border:1px solid var(--line);
-      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
-      border-radius:var(--r);
-      padding:12px;
-    }
+    @media(min-width:920px){.grid{grid-template-columns:2fr 1fr}}
+    .card{border:1px solid var(--line);background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));border-radius:var(--r);padding:12px}
+    .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    button{border:0;border-radius:12px;padding:10px 12px;font-weight:800;cursor:pointer}
+    .ghost{background:rgba(255,255,255,.05);color:var(--text);border:1px solid var(--line)}
+    .primary{background:linear-gradient(135deg,var(--accent),#6d5cff);color:#fff}
+    .danger{background:rgba(255,77,77,.15);color:#ffb0b0;border:1px solid rgba(255,77,77,.35)}
+    input{width:100%;border:1px solid var(--line);background:rgba(0,0,0,.25);color:var(--text);padding:10px;border-radius:12px;outline:none}
     .products{display:grid;gap:10px;grid-template-columns:1fr}
-    @media(min-width:700px){.products{grid-template-columns:1fr 1fr}}
-    .p{
-      border:1px solid var(--line);
-      border-radius:14px;
-      padding:10px;
-      display:grid;
-      gap:8px;
-      background:rgba(0,0,0,.18);
-    }
-    .phead{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+    @media(min-width:680px){.products{grid-template-columns:1fr 1fr}}
+    .p{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:rgba(0,0,0,.25)}
+    .ph{height:170px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px}
+    .p img{width:100%;height:170px;object-fit:cover;display:block}
+    .pb{padding:10px;display:grid;gap:8px}
     .pname{font-weight:900}
-    .pcat{font-size:12px;color:var(--muted)}
-    .pdesc{font-size:12px;color:var(--muted);white-space:pre-wrap}
-    .pimg{
-      width:100%;
-      height:170px;
-      border-radius:12px;
-      object-fit:cover;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.04);
-    }
-    .btns{display:flex;gap:8px;flex-wrap:wrap}
-    button{
-      border:0;border-radius:12px;padding:10px 12px;font-weight:900;cursor:pointer;
-      background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--line);
-    }
-    button.primary{background:linear-gradient(135deg,var(--accent),#6d5cff);color:#fff;border:0}
-    button.danger{background:rgba(255,77,77,.15);color:#ffb0b0;border:1px solid rgba(255,77,77,.35)}
-    button:disabled{opacity:.5;cursor:not-allowed}
-    input,textarea{
-      width:100%;border:1px solid var(--line);background:rgba(0,0,0,.25);color:var(--text);
-      padding:10px;border-radius:12px;outline:none
-    }
-    textarea{min-height:70px;resize:none}
-    .row{display:grid;gap:8px}
-    .cartList{display:grid;gap:8px;margin-top:10px}
-    .ci{border:1px solid var(--line);border-radius:14px;padding:10px;display:grid;gap:6px;background:rgba(0,0,0,.18)}
-    .ciTop{display:flex;justify-content:space-between;gap:10px}
-    .qty{display:flex;gap:6px;align-items:center}
+    .prow{display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .price{font-weight:900}
+    .cartItem{border:1px solid var(--line);border-radius:14px;padding:10px;display:grid;gap:6px}
+    .qty{display:flex;gap:8px;align-items:center}
     .qty button{padding:6px 10px;border-radius:10px}
-    .sum{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
-    .pill{display:inline-flex;gap:8px;align-items:center;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.04);font-size:12px;color:var(--muted)}
-    .status{margin-top:10px;font-size:12px;color:var(--muted);white-space:pre-wrap}
-    .empty{padding:14px;border:1px dashed var(--line);border-radius:14px;color:var(--muted);text-align:center}
+    .err{color:#ffb0b0}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="top">
-      <div>
-        <h1>Магазин</h1>
-        <div class="muted" id="subtitle">Загружаю товары…</div>
-      </div>
-      <div class="pill" id="tgBadge" style="display:none;">Telegram WebApp</div>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>Магазин</h1>
+      <div class="muted" id="subtitle">Выбери товары и оформи заказ</div>
     </div>
-
-    <div class="grid">
-      <!-- ТОВАРЫ -->
-      <div class="card">
-        <div class="btns" style="justify-content:space-between;align-items:center;">
-          <div class="muted">Товары</div>
-          <button id="reloadBtn">Обновить</button>
-        </div>
-        <div id="products" class="products" style="margin-top:10px;"></div>
-        <div id="productsEmpty" class="empty" style="display:none;margin-top:10px;">Товаров пока нет. Добавь их в админке.</div>
-      </div>
-
-      <!-- КОРЗИНА -->
-      <div class="card">
-        <div class="muted">Корзина</div>
-
-        <div class="row" style="margin-top:10px;">
-          <div>
-            <div class="muted" style="margin-bottom:6px;">Метро</div>
-            <input id="metro" placeholder="Напр. Площадь Ленина" />
-          </div>
-          <div>
-            <div class="muted" style="margin-bottom:6px;">Время</div>
-            <input id="time" placeholder="Напр. 18:30" />
-          </div>
-        </div>
-
-        <div id="cart" class="cartList"></div>
-        <div id="cartEmpty" class="empty" style="margin-top:10px;">Корзина пустая</div>
-
-        <div class="sum">
-          <div>
-            <div class="muted">Итого</div>
-            <div style="font-weight:900;font-size:18px;" id="total">0 ₽</div>
-          </div>
-          <div class="btns">
-            <button class="danger" id="clearBtn" disabled>Очистить</button>
-            <button class="primary" id="checkoutBtn" disabled>Оформить</button>
-          </div>
-        </div>
-
-        <div class="status" id="status"></div>
-      </div>
-    </div>
+    <button class="ghost" id="reload">Обновить</button>
   </div>
 
-<script>
-  // ------- Telegram WebApp (не обязательно) -------
-  const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
-  if (tg) {
-    document.getElementById("tgBadge").style.display = "inline-flex";
-    try { tg.ready(); } catch(e){}
-  }
+  <div class="grid">
+    <div class="card">
+      <div class="muted">Товары</div>
+      <div class="products" id="grid"></div>
+      <div class="muted" id="empty" style="display:none;margin-top:10px"></div>
+    </div>
 
-  const subtitle = document.getElementById("subtitle");
-  const productsEl = document.getElementById("products");
-  const productsEmpty = document.getElementById("productsEmpty");
-
-  const cartEl = document.getElementById("cart");
-  const cartEmpty = document.getElementById("cartEmpty");
-  const totalEl = document.getElementById("total");
-  const statusEl = document.getElementById("status");
-
-  const metroEl = document.getElementById("metro");
-  const timeEl  = document.getElementById("time");
-
-  const reloadBtn = document.getElementById("reloadBtn");
-  const clearBtn  = document.getElementById("clearBtn");
-  const checkoutBtn = document.getElementById("checkoutBtn");
-
-  let products = [];
-  let cart = []; // [{id,name,price,qty}]
-
-  const rub = (n)=> `${Number(n||0)} ₽`;
-
-  function setStatus(msg){
-    statusEl.textContent = msg || "";
-  }
-
-  function calcTotal(){
-    return cart.reduce((s,i)=> s + (Number(i.price||0) * Number(i.qty||0)), 0);
-  }
-
-  function saveCart(){
-    localStorage.setItem("CART", JSON.stringify(cart));
-  }
-  function loadCart(){
-    try{
-      cart = JSON.parse(localStorage.getItem("CART") || "[]") || [];
-    }catch{ cart = []; }
-  }
-
-  function renderProducts(){
-    productsEl.innerHTML = "";
-    productsEmpty.style.display = products.length ? "none" : "block";
-
-    for(const p of products){
-      const div = document.createElement("div");
-      div.className = "p";
-
-      const img = document.createElement("img");
-      img.className = "pimg";
-      img.alt = p.name || "Фото";
-      img.loading = "lazy";
-      img.src = p.photo || "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(
-        `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450">
-          <rect width="100%" height="100%" fill="#1b2130"/>
-          <text x="50%" y="50%" fill="#9aa3b2" font-size="28" font-family="Arial" dominant-baseline="middle" text-anchor="middle">
-            Нет фото
-          </text>
-        </svg>`
-      );
-
-      const head = document.createElement("div");
-      head.className = "phead";
-      head.innerHTML = `
+    <div class="card">
+      <div class="muted">Корзина</div>
+      <div style="display:grid;gap:8px;margin-top:8px">
         <div>
-          <div class="pname">${escapeHtml(p.name)}</div>
-          <div class="pcat">${p.category ? escapeHtml(p.category) : ""}</div>
+          <div class="muted">Метро</div>
+          <input id="metro" placeholder="Напр. Таганская"/>
         </div>
-        <div style="font-weight:900">${rub(p.price)}</div>
-      `;
+        <div>
+          <div class="muted">Время</div>
+          <input id="time" placeholder="Напр. 18:30"/>
+        </div>
+      </div>
 
-      const desc = document.createElement("div");
-      desc.className = "pdesc";
-      desc.textContent = p.description || "";
+      <div id="cart" style="display:grid;gap:8px;margin-top:10px"></div>
 
-      const btns = document.createElement("div");
-      btns.className = "btns";
+      <div class="prow" style="margin-top:10px">
+        <div>
+          <div class="muted">Итого</div>
+          <div class="price" id="total">0 ₽</div>
+        </div>
+        <button class="danger" id="clear">Очистить</button>
+        <button class="primary" id="order">Оформить</button>
+      </div>
 
-      const inCart = cart.find(x => x.id === p.id);
-      const btn = document.createElement("button");
-      btn.className = "primary";
-      btn.textContent = inCart ? "Добавлено" : "В корзину";
-      btn.disabled = !!inCart;
+      <div class="muted err" id="orderErr" style="margin-top:8px"></div>
+    </div>
+  </div>
+</div>
 
-      btn.onclick = ()=>{
-        addToCart(p.id);
-      };
+<script>
+let products = [];
+let cart = {}; // id -> qty
 
-      btns.appendChild(btn);
+const grid = document.getElementById("grid");
+const empty = document.getElementById("empty");
+const reloadBtn = document.getElementById("reload");
+const cartBox = document.getElementById("cart");
+const totalEl = document.getElementById("total");
+const metroEl = document.getElementById("metro");
+const timeEl = document.getElementById("time");
+const clearBtn = document.getElementById("clear");
+const orderBtn = document.getElementById("order");
+const orderErr = document.getElementById("orderErr");
 
-      div.appendChild(img);
-      div.appendChild(head);
-      if (p.description) div.appendChild(desc);
-      div.appendChild(btns);
+function money(n){ return (Number(n||0)) + " ₽"; }
 
-      productsEl.appendChild(div);
-    }
+async function loadProducts(){
+  orderErr.textContent = "";
+  try{
+    const r = await fetch("/api/products", {cache:"no-store"});
+    if(!r.ok) throw new Error(await r.text());
+    const data = await r.json();
+    products = Array.isArray(data) ? data : (data.products || []);
+    render();
+  }catch(e){
+    grid.innerHTML = "";
+    empty.style.display = "block";
+    empty.textContent = "Не удалось загрузить товары. Проверь /api/products";
+    console.error(e);
   }
+}
 
-  function renderCart(){
-    cartEl.innerHTML = "";
-    cartEmpty.style.display = cart.length ? "none" : "block";
+function render(){
+  empty.style.display = (products.length===0) ? "block" : "none";
+  empty.textContent = "Пока нет товаров. Добавь их в /admin";
+  grid.innerHTML = "";
 
-    for(const item of cart){
-      const row = document.createElement("div");
-      row.className = "ci";
+  for(const p of products){
+    const inCart = cart[p.id] || 0;
+    const img = (p.photo||"").trim();
+    grid.innerHTML += `
+      <div class="p">
+        ${img ? `<img src="${escapeHtml(img)}" alt="">` : `<div class="ph">Нет фото</div>`}
+        <div class="pb">
+          <div class="prow">
+            <div class="pname">${escapeHtml(p.name)}</div>
+            <div class="price">${money(p.price)}</div>
+          </div>
+          <div class="muted">${escapeHtml(p.description||"")}</div>
+          <div class="prow">
+            <button class="${inCart? "ghost":"primary"}" onclick="addToCart(${p.id})">
+              ${inCart? "Добавлено":"Добавить"}
+            </button>
+            ${inCart? `<span class="muted">x${inCart}</span>`:""}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  renderCart();
+}
 
-      row.innerHTML = `
-        <div class="ciTop">
-          <div style="font-weight:900">${escapeHtml(item.name)}</div>
-          <div style="font-weight:900">${rub(item.price)}</div>
+function renderCart(){
+  cartBox.innerHTML = "";
+  let total = 0;
+
+  const items = Object.entries(cart).map(([id,qty])=>{
+    const p = products.find(x=>String(x.id)===String(id));
+    return p ? {p, qty:Number(qty)} : null;
+  }).filter(Boolean);
+
+  for(const it of items){
+    total += Number(it.p.price||0) * it.qty;
+    cartBox.innerHTML += `
+      <div class="cartItem">
+        <div class="prow">
+          <div><b>${escapeHtml(it.p.name)}</b></div>
+          <div class="price">${money(Number(it.p.price||0)*it.qty)}</div>
         </div>
         <div class="qty">
-          <button type="button" data-act="dec">-</button>
-          <div style="min-width:26px;text-align:center;font-weight:900">${item.qty}</div>
-          <button type="button" data-act="inc">+</button>
-          <button type="button" class="danger" data-act="del" style="margin-left:auto;">Удалить</button>
+          <button class="ghost" onclick="dec(${it.p.id})">-</button>
+          <b>${it.qty}</b>
+          <button class="ghost" onclick="inc(${it.p.id})">+</button>
+          <button class="danger" onclick="removeItem(${it.p.id})">Удалить</button>
         </div>
-      `;
-
-      row.querySelector('[data-act="dec"]').onclick = ()=> changeQty(item.id, -1);
-      row.querySelector('[data-act="inc"]').onclick = ()=> changeQty(item.id, +1);
-      row.querySelector('[data-act="del"]').onclick = ()=> removeFromCart(item.id);
-
-      cartEl.appendChild(row);
-    }
-
-    const total = calcTotal();
-    totalEl.textContent = rub(total);
-
-    clearBtn.disabled = cart.length === 0;
-    checkoutBtn.disabled = cart.length === 0;
+      </div>
+    `;
   }
 
-  function addToCart(pid){
-    const p = products.find(x => x.id === pid);
-    if(!p) return;
-    cart.push({id:p.id, name:p.name, price:Number(p.price||0), qty:1});
-    saveCart();
-    renderProducts();
-    renderCart();
+  totalEl.textContent = money(total);
+}
+
+function addToCart(id){
+  cart[id] = (cart[id]||0) + 1;
+  render();
+}
+function inc(id){ cart[id] = (cart[id]||0) + 1; renderCart(); render(); }
+function dec(id){
+  cart[id] = (cart[id]||0) - 1;
+  if(cart[id] <= 0) delete cart[id];
+  renderCart(); render();
+}
+function removeItem(id){ delete cart[id]; renderCart(); render(); }
+
+clearBtn.onclick = ()=>{ cart = {}; renderCart(); render(); };
+
+orderBtn.onclick = async ()=>{
+  orderErr.textContent = "";
+  const items = Object.entries(cart).map(([id,qty])=>{
+    const p = products.find(x=>String(x.id)===String(id));
+    return p ? {id:p.id, name:p.name, price:p.price, qty:Number(qty)} : null;
+  }).filter(Boolean);
+
+  if(items.length===0){
+    orderErr.textContent = "Корзина пустая";
+    return;
   }
 
-  function changeQty(pid, delta){
-    const it = cart.find(x => x.id === pid);
-    if(!it) return;
-    it.qty = Math.max(1, Number(it.qty||1) + delta);
-    saveCart();
-    renderCart();
+  const total = items.reduce((s,x)=>s + Number(x.price||0)*Number(x.qty||0), 0);
+
+  try{
+    const r = await fetch("/api/order", {
+      method:"POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        tg_user: "",     // если потом надо — подставим username из Telegram WebApp
+        metro: metroEl.value,
+        time: timeEl.value,
+        items,
+        total
+      })
+    });
+    const data = await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(data.detail || (await r.text()));
+
+    alert("Заказ отправлен! #" + data.order_id);
+    cart = {};
+    renderCart(); render();
+  }catch(e){
+    orderErr.textContent = "Ошибка оформления: " + e.message;
+    console.error(e);
   }
+};
 
-  function removeFromCart(pid){
-    cart = cart.filter(x => x.id !== pid);
-    saveCart();
-    renderProducts();
-    renderCart();
-  }
+reloadBtn.onclick = loadProducts;
 
-  function clearCart(){
-    cart = [];
-    saveCart();
-    renderProducts();
-    renderCart();
-  }
+function escapeHtml(s){
+  return String(s||"")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
 
-  function escapeHtml(s){
-    return String(s||"")
-      .replaceAll("&","&amp;")
-      .replaceAll("<","&lt;")
-      .replaceAll(">","&gt;")
-      .replaceAll('"',"&quot;")
-      .replaceAll("'","&#039;");
-  }
-
-  async function loadProducts(){
-    setStatus("");
-    subtitle.textContent = "Загружаю товары…";
-    try{
-      const r = await fetch("/api/products", {cache:"no-store"});
-      if(!r.ok){
-        const txt = await r.text();
-        throw new Error(`${r.status} ${r.statusText}: ${txt}`);
-      }
-      const ct = r.headers.get("content-type") || "";
-      let data;
-      if(ct.includes("application/json")){
-        data = await r.json();
-      }else{
-        const txt = await r.text();
-        throw new Error("Ответ не JSON: " + txt);
-      }
-
-      const arr = Array.isArray(data) ? data : (data.products || []);
-      products = arr.map(p => ({
-        id: p.id,
-        name: p.name ?? p.title ?? "Без названия",
-        price: Number(p.price ?? 0),
-        description: p.description ?? p.desc ?? "",
-        photo: p.photo ?? p.image_url ?? p.image ?? p.img ?? "",
-        category: p.category ?? p.category_name ?? ""
-      }));
-
-      subtitle.textContent = products.length ? "Выбери товары и оформи заказ" : "Товаров пока нет";
-      renderProducts();
-      renderCart();
-    }catch(e){
-      subtitle.textContent = "Ошибка загрузки товаров";
-      products = [];
-      renderProducts();
-      setStatus("Не удалось загрузить товары:\n" + (e?.message || e));
-      console.error(e);
-    }
-  }
-
-  async function checkout(){
-    setStatus("");
-    const metro = (metroEl.value || "").trim();
-    const time  = (timeEl.value || "").trim();
-    if(!metro){ setStatus("Укажи метро"); metroEl.focus(); return; }
-    if(!time){ setStatus("Укажи время"); timeEl.focus(); return; }
-    if(cart.length === 0){ setStatus("Корзина пустая"); return; }
-
-    // tg username (если есть)
-    const tgUser = tg?.initDataUnsafe?.user?.username
-      ? ("@" + tg.initDataUnsafe.user.username)
-      : "";
-
-    const payload = {
-      tg_user: tgUser,
-      metro,
-      time,
-      items: cart.map(i => ({ id:i.id, name:i.name, price:i.price, qty:i.qty })),
-      total: calcTotal()
-    };
-
-    try{
-      checkoutBtn.disabled = true;
-
-      const r = await fetch("/api/order", {
-        method:"POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify(payload)
-      });
-
-      if(!r.ok){
-        const txt = await r.text();
-        throw new Error(`${r.status} ${r.statusText}: ${txt}`);
-      }
-
-      const data = await r.json().catch(()=> ({}));
-      const orderId = data.order_id ?? "";
-      setStatus("✅ Заказ оформлен" + (orderId ? ` (№${orderId})` : ""));
-
-      clearCart();
-
-      // Telegram: можно закрыть миниапп или показать popup
-      if(tg){
-        try{ tg.showPopup({title:"Готово", message:"Заказ отправлен!", buttons:[{type:"ok"}]}); }catch(e){}
-      }
-
-    }catch(e){
-      setStatus("❌ Ошибка оформления:\n" + (e?.message || e));
-      console.error(e);
-    }finally{
-      checkoutBtn.disabled = (cart.length === 0);
-    }
-  }
-
-  // events
-  reloadBtn.onclick = loadProducts;
-  clearBtn.onclick = clearCart;
-  checkoutBtn.onclick = checkout;
-
-  // init
-  loadCart();
-  loadProducts();
-  renderCart();
+loadProducts();
 </script>
 </body>
 </html>
