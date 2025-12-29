@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="ru">
 <head>
@@ -30,7 +31,7 @@
     .prow{display:flex;justify-content:space-between;align-items:center;gap:10px}
     .price{font-weight:900}
     .cartItem{border:1px solid var(--line);border-radius:14px;padding:10px;display:grid;gap:6px}
-    .qty{display:flex;gap:8px;align-items:center}
+    .qty{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .qty button{padding:6px 10px;border-radius:10px}
     .err{color:#ffb0b0}
   </style>
@@ -54,7 +55,12 @@
 
     <div class="card">
       <div class="muted">Корзина</div>
+
       <div style="display:grid;gap:8px;margin-top:8px">
+        <div>
+          <div class="muted">Твой Telegram юз (например: @mike)</div>
+          <input id="tgUser" placeholder="@username"/>
+        </div>
         <div>
           <div class="muted">Метро</div>
           <input id="metro" placeholder="Напр. Таганская"/>
@@ -89,9 +95,15 @@ const grid = document.getElementById("grid");
 const empty = document.getElementById("empty");
 const reloadBtn = document.getElementById("reload");
 const cartBox = document.getElementById("cart");
-const totalEl = document.getElementById("total");
+const totalEl = document.
+
+
+getElementById("total");
+
+const tgUserEl = document.getElementById("tgUser");
 const metroEl = document.getElementById("metro");
 const timeEl = document.getElementById("time");
+
 const clearBtn = document.getElementById("clear");
 const orderBtn = document.getElementById("order");
 const orderErr = document.getElementById("orderErr");
@@ -124,7 +136,7 @@ function render(){
     const img = (p.photo||"").trim();
     grid.innerHTML += `
       <div class="p">
-        ${img ? `<img src="${escapeHtml(img)}" alt="">` : `<div class="ph">Нет фото</div>`}
+        ${img ? <img src="${escapeHtml(img)}" alt=""> : `<div class="ph">Нет фото</div>`}
         <div class="pb">
           <div class="prow">
             <div class="pname">${escapeHtml(p.name)}</div>
@@ -135,7 +147,7 @@ function render(){
             <button class="${inCart? "ghost":"primary"}" onclick="addToCart(${p.id})">
               ${inCart? "Добавлено":"Добавить"}
             </button>
-            ${inCart? `<span class="muted">x${inCart}</span>`:""}
+            ${inCart? <span class="muted">x${inCart}</span>:""}
           </div>
         </div>
       </div>
@@ -190,6 +202,13 @@ clearBtn.onclick = ()=>{ cart = {}; renderCart(); render(); };
 
 orderBtn.onclick = async ()=>{
   orderErr.textContent = "";
+
+  const tgUser = (tgUserEl.value || "").trim();
+  if(!tgUser){
+    orderErr.textContent = "Введи свой Telegram юз (например: @mike)";
+    return;
+  }
+
   const items = Object.entries(cart).map(([id,qty])=>{
     const p = products.find(x=>String(x.id)===String(id));
     return p ? {id:p.id, name:p.name, price:p.price, qty:Number(qty)} : null;
@@ -207,7 +226,7 @@ orderBtn.onclick = async ()=>{
       method:"POST",
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify({
-        tg_user: "",     // если потом надо — подставим username из Telegram WebApp
+        tg_user: tgUser,
         metro: metroEl.value,
         time: timeEl.value,
         items,
@@ -215,7 +234,10 @@ orderBtn.onclick = async ()=>{
       })
     });
     const data = await r.json().catch(()=>({}));
-    if(!r.ok) throw new Error(data.detail || (await r.text()));
+    if(!r.ok) throw new Error(data.
+
+
+detail || (await r.text()));
 
     alert("Заказ отправлен! #" + data.order_id);
     cart = {};
@@ -241,4 +263,3 @@ loadProducts();
 </script>
 </body>
 </html>
-
