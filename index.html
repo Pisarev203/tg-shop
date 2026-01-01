@@ -10,7 +10,7 @@
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text)}
     .wrap{max-width:1100px;margin:0 auto;padding:16px}
     h1{margin:0;font-size:20px}
-    .muted{color:var(--muted);font-size:12px}
+    .muted{color:var(--muted);font-size:12px;white-space:pre-line}
     .grid{display:grid;gap:12px;grid-template-columns:1fr}
     @media(min-width:920px){.grid{grid-template-columns:2fr 1fr}}
     .card{border:1px solid var(--line);background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));border-radius:var(--r);padding:12px}
@@ -32,7 +32,7 @@
     .cartItem{border:1px solid var(--line);border-radius:14px;padding:10px;display:grid;gap:6px}
     .qty{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .qty button{padding:6px 10px;border-radius:10px}
-    .err{color:#ffb0b0}
+    .err{color:#ffb0b0;white-space:pre-line}
   </style>
 </head>
 <body>
@@ -106,19 +106,28 @@ const orderErr = document.getElementById("orderErr");
 
 function money(n){ return (Number(n||0)) + " ₽"; }
 
+window.addEventListener("error", (ev)=>{
+  console.error("JS ERROR:", ev.error || ev.message);
+});
+
 async function loadProducts(){
   orderErr.textContent = "";
   try{
     const r = await fetch("/api/products", {cache:"no-store"});
-    if(!r.ok) throw new Error(await r.text());
-    const data = await r.json();
+    const txt = await r.text();
+    if(!r.ok) throw new Error(txt);
+
+    const data = JSON.parse(txt);
+    console.log("API /api/products ->", data);
+
     products = Array.isArray(data) ? data : (data.products || []);
     render();
   }catch(e){
+    console.error(e);
     grid.innerHTML = "";
     empty.style.display = "block";
-    empty.textContent = "Не удалось загрузить товары. Проверь /api/products";
-    console.error(e);
+    empty.textContent = "Не удалось загрузить товары. Открой F12 → Console.";
+    orderErr.textContent = "Ошибка загрузки: " + e.message;
   }
 }
 
@@ -129,7 +138,8 @@ function render(){
 
   for(const p of products){
     const inCart = cart[p.id] || 0;
-    const img = (p.photo||"").trim();
+    const img = String(p.photo||"").trim();
+
     grid.innerHTML += `
       <div class="p">
         ${img ? `<img src="${escapeHtml(img)}" alt="">` : `<div class="ph">Нет фото</div>`}
@@ -140,10 +150,10 @@ function render(){
           </div>
           <div class="muted">${escapeHtml(p.description||"")}</div>
           <div class="prow">
-            <button class="${inCart? "ghost":"primary"}" onclick="addToCart(${p.id})">
-              ${inCart? "Добавлено":"Добавить"}
+            <button class="${inCart ? "ghost":"primary"}" onclick="addToCart(${p.id})">
+              ${inCart ? "Добавлено":"Добавить"}
             </button>
-            ${inCart? `<span class="muted">x${inCart}</span>`:""}
+            ${inCart ? `<span class="muted">x${inCart}</span>` : ""}
           </div>
         </div>
       </div>
@@ -256,4 +266,3 @@ loadProducts();
 </script>
 </body>
 </html>
-
