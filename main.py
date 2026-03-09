@@ -1,4 +1,6 @@
 
+# FULL FIXED main.py
+
 import asyncio
 import json
 import logging
@@ -14,14 +16,12 @@ from fastapi.staticfiles import StaticFiles
 
 import db
 
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 API_TOKEN = (os.getenv("API_TOKEN") or "").strip()
 ADMIN_ID_RAW = (os.getenv("ADMIN_ID") or "").strip()
 WEBAPP_URL = (os.getenv("WEBAPP_URL") or "").strip().rstrip("/")
-PORT = int((os.getenv("PORT") or "5000").strip())
 
 if not API_TOKEN:
     raise RuntimeError("API_TOKEN не задан")
@@ -29,17 +29,10 @@ if not API_TOKEN:
 if not ADMIN_ID_RAW:
     raise RuntimeError("ADMIN_ID не задан")
 
-try:
-    ADMIN_ID = int(ADMIN_ID_RAW)
-except ValueError as e:
-    raise RuntimeError("ADMIN_ID должен быть числом") from e
+ADMIN_ID = int(ADMIN_ID_RAW)
 
 if not WEBAPP_URL:
     raise RuntimeError("WEBAPP_URL не задан")
-
-if not os.getenv("DATABASE_URL"):
-    raise RuntimeError("DATABASE_URL не задан")
-
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot)
@@ -53,13 +46,13 @@ DATA_DIR = Path("/data")
 UPLOADS_DIR = DATA_DIR / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
-if STATIC_DIR.exists() and STATIC_DIR.is_dir():
+if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 
-def build_main_keyboard() -> types.ReplyKeyboardMarkup:
+def build_main_keyboard():
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
     kb.add(
         types.KeyboardButton(
@@ -70,34 +63,7 @@ def build_main_keyboard() -> types.ReplyKeyboardMarkup:
     return kb
 
 
-def parse_product_caption(text: str):
-    parts = [p.strip() for p in (text or "").split("|")]
-    if len(parts) != 4:
-        raise ValueError("Нужен формат: название|цена|описание|категория")
-
-    name, price_raw, description, category = parts
-
-    try:
-        price = int(price_raw)
-    except ValueError:
-        raise ValueError("Цена должна быть числом")
-
-    if not name:
-        raise ValueError("Название пустое")
-
-    return {
-        "name": name,
-        "price": price,
-        "description": description,
-        "category": category,
-    }
-
-
 def save_uploaded_file_bytes(content: bytes, ext: str) -> str:
-    ext = ext.lower().strip(".")
-    if ext not in {"jpg", "jpeg", "png", "webp"}:
-        raise ValueError("Разрешены только jpg, jpeg, png, webp")
-
     filename = f"{secrets.token_hex(16)}.{ext}"
     path = UPLOADS_DIR / filename
     path.write_bytes(content)
@@ -117,113 +83,84 @@ async def admin_cmd(message: types.Message):
 
     await message.answer(
         "Админка:\n\n"
-        "1) Текстом:\n"
-        "название|цена|описание|ссылка_на_картинку|категория\n\n"
-        "2) Фото + подпись:\n"
+        "Текстом:\n"
+        "название|цена|описание|ссылка|категория\n\n"
+        "Фото + подпись:\n"
         "название|цена|описание|категория\n\n"
-        f"3) Веб-админка:\n{WEBAPP_URL}/admin-web"
+        f"Веб админка:\n{WEBAPP_URL}/admin-web"
     )
 
 
 @dp.message_handler(lambda m: m.text and "|" in m.text)
 async def add_product_text_cmd(message: types.Message):
+
     if message.from_user.id != ADMIN_ID:
         return
 
     parts = [p.strip() for p in message.text.split("|")]
+
     if len(parts) != 5:
         return
 
     name, price_raw, description, image, category = parts
+    price = int(price_raw)
 
-    try:
-        price = int(price_raw)
-    except ValueError:
-        await message.answer("Цена должна быть числом.")
-        return
+    product_id = db.add_product(name, price, description, image, category)
 
-    try:
-        product_id = db.add_product(name, price, description, image, category)
-        await message.answer(f"Товар добавлен. ID: {product_id}")
-    except Exception as e:
-        logger.exception("Ошибка при добавлении товара")
-        await message.answer(f"Ошибка при добавлении товара: {e}")
+    await message.answer(f"Товар добавлен ID {product_id}")
 
 
 @dp.message_handler(content_types=types.ContentType.PHOTO)
 async def add_product_photo_cmd(message: types.Message):
+
     if message.from_user.id != ADMIN_ID:
         return
 
     if not message.caption:
         return
 
-    try:
-        product = parse_product_caption(message.caption)
-    except Exception as e:
-        await message.answer(
-            "Для фото нужен формат подписи:\n"
-            "название|цена|описание|категория\n\n"
-            f"Ошибка: {e}"
-        )
+    parts = message.caption.split("|")
+
+    if len(parts) != 4:
         return
 
-    try:
-        photo = message.photo[-1]
-        file_info = await bot.get_file(photo.file_id)
-        downloaded = await bot.download_file(file_info.file_path)
-        content = downloaded.read()
+    name, price_raw, description, category = parts
 
-        ext = "jpg"
-        file_path = (file_info.file_path or "").lower()
-        if file_path.endswith(".png"):
-            ext = "png"
-        elif file_path.endswith(".webp"):
-            ext = "webp"
-        elif file_path.endswith(".jpeg"):
-            ext = "jpeg"
+    price = int(price_raw)
 
-        image_url = save_uploaded_file_bytes(content, ext)
+    photo = message.photo[-1]
 
-        product_id = db.add_product(
-            product["name"],
-            product["price"],
-            product["description"],
-            image_url,
-            product["category"],
-        )
+    file_info = await bot.get_file(photo.file_id)
 
-        await message.answer(
-            f"Товар добавлен.\nID: {product_id}\nКартинка: {image_url}"
-        )
-    except Exception as e:
-        logger.exception("Ошибка при загрузке фото товара")
-        await message.answer(f"Ошибка при загрузке фото: {e}")
+    downloaded = await bot.download_file(file_info.file_path)
+
+    content = downloaded.read()
+
+    image_url = save_uploaded_file_bytes(content, "jpg")
+
+    product_id = db.add_product(
+        name,
+        price,
+        description,
+        image_url,
+        category,
+    )
+
+    await message.answer(f"Товар добавлен ID {product_id}")
 
 
 @app.get("/", response_class=HTMLResponse)
 async def home():
+
     if INDEX_HTML.exists():
         return FileResponse(INDEX_HTML)
 
-    return """
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <title>MSV Shop</title>
-      </head>
-      <body>
-        <h1>MSV Shop</h1>
-        <p>Сайт запущен ✅</p>
-        <p><a href="/admin-web">Открыть веб-админку</a></p>
-      </body>
-    </html>
-    """
+    return "<h1>MSV SHOP работает</h1>"
 
 
 @app.get("/health")
 async def health():
-    return JSONResponse({"status": "ok"})
+    return {"status": "ok"}
 
 
 @app.get("/products")
@@ -231,25 +168,112 @@ async def products():
     return db.get_products()
 
 
+@app.get("/api/products")
+async def api_products():
+    return db.get_products()
+
+
+@app.get("/admin-web", response_class=HTMLResponse)
+async def admin_web():
+
+    products = db.get_products()
+
+    rows = []
+
+    for p in products:
+
+        rows.append(
+            f"""
+<tr>
+<td>{p["id"]}</td>
+<td>{p["name"]}</td>
+<td>{p["price"]}</td>
+<td>{p["category"]}</td>
+</tr>
+"""
+        )
+
+    return f"""
+<html>
+<head>
+<title>MSV ADMIN</title>
+</head>
+<body>
+
+<h1>Добавить товар</h1>
+
+<form action="/admin-web/add" method="post" enctype="multipart/form-data">
+
+<input name="name" placeholder="Название"><br>
+<input name="price" placeholder="Цена"><br>
+<input name="category" placeholder="Категория"><br>
+<textarea name="description"></textarea><br>
+
+<input type="file" name="image"><br>
+
+<button type="submit">Добавить</button>
+
+</form>
+
+<h2>Товары</h2>
+
+<table border="1">
+
+<tr>
+<th>ID</th>
+<th>Название</th>
+<th>Цена</th>
+<th>Категория</th>
+</tr>
+
+{''.join(rows)}
+
+</table>
+
+</body>
+</html>
+"""
+
+
+@app.post("/admin-web/add")
+async def admin_web_add(
+
+    name: str = Form(...),
+    price: int = Form(...),
+    category: str = Form(...),
+    description: str = Form(""),
+    image: UploadFile = File(...),
+
+):
+
+    content = await image.read()
+
+    image_url = save_uploaded_file_bytes(content, "jpg")
+
+    db.add_product(name, price, description, image_url, category)
+
+    return RedirectResponse("/admin-web", 303)
+
+
 @app.on_event("startup")
 async def on_startup():
-    logger.info("Инициализация базы данных...")
+
     db.init_db()
 
-    logger.info("Запуск Telegram-бота...")
     app.state.bot_polling_task = asyncio.create_task(dp.start_polling())
 
 
 @app.on_event("shutdown")
 async def on_shutdown():
+
     task = getattr(app.state, "bot_polling_task", None)
 
     if task:
         task.cancel()
+
         with suppress(asyncio.CancelledError):
             await task
 
     session = await bot.get_session()
-    await session.close()
 
-    logger.info("Приложение остановлено")
+    await session.close()
