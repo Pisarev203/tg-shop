@@ -240,7 +240,10 @@ orderBtn.onclick = async ()=>{
       })
     });
     const data = await r.json().catch(()=>({}));
-    if(!r.ok) throw new Error(data.detail || (await r.text()));
+
+    if(!r.ok){
+        throw new Error(data.error  data.detail  "Ошибка заказа");
+    }
 
     alert("Заказ отправлен! #" + data.order_id);
     cart = {};
@@ -266,3 +269,4 @@ loadProducts();
 </script>
 </body>
 </html>
+
