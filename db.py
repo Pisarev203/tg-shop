@@ -1,3 +1,4 @@
+
 import json
 import os
 from contextlib import contextmanager
@@ -24,7 +25,7 @@ def init_db():
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                """
+                '''
                 CREATE TABLE IF NOT EXISTS products (
                     id SERIAL PRIMARY KEY,
                     name TEXT NOT NULL,
@@ -34,7 +35,7 @@ def init_db():
                     category TEXT DEFAULT '',
                     created_at TIMESTAMP DEFAULT NOW()
                 );
-                """
+                '''
             )
 
             cur.execute(
@@ -48,7 +49,7 @@ def init_db():
             )
 
             cur.execute(
-                """
+                '''
                 CREATE TABLE IF NOT EXISTS orders (
                     id SERIAL PRIMARY KEY,
                     tg_user TEXT NOT NULL,
@@ -58,11 +59,11 @@ def init_db():
                     items_json JSONB NOT NULL DEFAULT '[]'::jsonb,
                     created_at TIMESTAMP DEFAULT NOW()
                 );
-                """
+                '''
             )
 
             cur.execute(
-                """
+                '''
                 CREATE TABLE IF NOT EXISTS order_items (
                     id SERIAL PRIMARY KEY,
                     order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
@@ -71,7 +72,7 @@ def init_db():
                     price INTEGER NOT NULL DEFAULT 0,
                     line_total INTEGER NOT NULL DEFAULT 0
                 );
-                """
+                '''
             )
 
         conn.commit()
@@ -91,11 +92,11 @@ def add_product(name, price, description="", image="", category=""):
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                """
+                '''
                 INSERT INTO products (name, price, description, image, category)
                 VALUES (%s, %s, %s, %s, %s)
                 RETURNING id;
-                """,
+                ''',
                 (name, price, description, image, category),
             )
             product_id = cur.fetchone()[0]
@@ -109,11 +110,11 @@ def get_products():
         with get_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    """
+                    '''
                     SELECT id, name, price, description, image, category
                     FROM products
                     ORDER BY id DESC;
-                    """
+                    '''
                 )
                 rows = cur.fetchall()
 
@@ -135,71 +136,6 @@ def get_products():
         return []
 
 
-def get_product(product_id):
-    try:
-        with get_conn() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    SELECT id, name, price, description, image, category
-                    FROM products
-                    WHERE id = %s;
-                    """,
-                    (product_id,),
-                )
-                row = cur.fetchone()
-
-        if not row:
-            return None
-
-        return {
-            "id": row[0],
-            "name": row[1],
-            "price": row[2],
-            "description": row[3],
-            "image": row[4],
-            "category": row[5],
-        }
-    except Exception as e:
-        print("DB get_product ERROR:", e)
-        return None
-
-
-def update_product(product_id, name, price, description="", image="", category=""):
-    name = str(name or "").strip()
-    description = str(description or "").strip()
-    image = str(image or "").strip()
-    category = str(category or "").strip()
-
-    if not name:
-        raise ValueError("Название товара пустое")
-
-    price = int(price)
-
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                UPDATE products
-                SET name = %s,
-                    price = %s,
-                    description = %s,
-                    image = %s,
-                    category = %s
-                WHERE id = %s;
-                """,
-                (name, price, description, image, category, product_id),
-            )
-        conn.commit()
-
-
-def delete_product(product_id):
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("DELETE FROM products WHERE id = %s;", (product_id,))
-        conn.commit()
-
-
 def create_order(tg_user, metro, delivery_time, items, total):
     tg_user = str(tg_user or "").strip()
     metro = str(metro or "").strip()
@@ -219,12 +155,12 @@ def create_order(tg_user, metro, delivery_time, items, total):
 
         try:
             qty = int(item.get("qty", 1) or 1)
-        except (TypeError, ValueError):
+        except:
             qty = 1
 
         try:
             price = int(item.get("price", 0) or 0)
-        except (TypeError, ValueError):
+        except:
             price = 0
 
         if qty < 1:
@@ -246,7 +182,7 @@ def create_order(tg_user, metro, delivery_time, items, total):
 
     try:
         total = int(total)
-    except (TypeError, ValueError):
+    except:
         total = calculated_total
 
     if total <= 0 and calculated_total > 0:
@@ -255,11 +191,11 @@ def create_order(tg_user, metro, delivery_time, items, total):
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                """
+                '''
                 INSERT INTO orders (tg_user, metro, delivery_time, total, items_json)
                 VALUES (%s, %s, %s, %s, %s::jsonb)
                 RETURNING id;
-                """,
+                ''',
                 (
                     tg_user,
                     metro,
@@ -272,10 +208,10 @@ def create_order(tg_user, metro, delivery_time, items, total):
 
             for item in normalized_items:
                 cur.execute(
-                    """
+                    '''
                     INSERT INTO order_items (order_id, product_name, qty, price, line_total)
                     VALUES (%s, %s, %s, %s, %s);
-                    """,
+                    ''',
                     (
                         order_id,
                         item["name"],
@@ -287,33 +223,3 @@ def create_order(tg_user, metro, delivery_time, items, total):
 
         conn.commit()
         return order_id
-
-
-def get_orders(limit=50):
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT id, tg_user, metro, delivery_time, total, items_json, created_at
-                FROM orders
-                ORDER BY id DESC
-                LIMIT %s;
-                """,
-                (limit,),
-            )
-            rows = cur.fetchall()
-
-    result = []
-    for row in rows:
-        result.append(
-            {
-                "id": row[0],
-                "tg_user": row[1],
-                "metro": row[2],
-                "delivery_time": row[3],
-                "total": row[4],
-                "items": row[5],
-                "created_at": str(row[6]),
-            }
-        )
-    return result
