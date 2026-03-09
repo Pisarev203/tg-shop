@@ -3,12 +3,13 @@ import asyncio
 import json
 import logging
 import os
+import secrets
 from contextlib import suppress
 from pathlib import Path
 
 from aiogram import Bot, Dispatcher, types
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
+from fastapi import FastAPI, File, Form, UploadFile
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 import db
@@ -19,7 +20,8 @@ logger = logging.getLogger(__name__)
 
 API_TOKEN = (os.getenv("API_TOKEN") or "").strip()
 ADMIN_ID_RAW = (os.getenv("ADMIN_ID") or "").strip()
-WEBAPP_URL = (os.getenv("WEBAPP_URL") or "").strip()
+WEBAPP_URL = (os.getenv("WEBAPP_URL") or "").strip().rstrip("/")
+PORT = int((os.getenv("PORT") or "5000").strip())
 
 if not API_TOKEN:
     raise RuntimeError("API_TOKEN не задан")
@@ -47,8 +49,14 @@ BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 INDEX_HTML = BASE_DIR / "index.html"
 
+DATA_DIR = Path("/data")
+UPLOADS_DIR = DATA_DIR / "uploads"
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+
 if STATIC_DIR.exists() and STATIC_DIR.is_dir():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 
 def build_main_keyboard() -> types.ReplyKeyboardMarkup:
@@ -60,6 +68,40 @@ def build_main_keyboard() -> types.ReplyKeyboardMarkup:
         )
     )
     return kb
+
+
+def parse_product_caption(text: str):
+    parts = [p.strip() for p in (text or "").split("|")]
+    if len(parts) != 4:
+        raise ValueError("Нужен формат: название|цена|описание|категория")
+
+    name, price_raw, description, category = parts
+
+    try:
+        price = int(price_raw)
+    except ValueError:
+        raise ValueError("Цена должна быть числом")
+
+    if not name:
+        raise ValueError("Название пустое")
+
+    return {
+        "name": name,
+        "price": price,
+        "description": description,
+        "category": category,
+    }
+
+
+def save_uploaded_file_bytes(content: bytes, ext: str) -> str:
+    ext = ext.lower().strip(".")
+    if ext not in {"jpg", "jpeg", "png", "webp"}:
+        raise ValueError("Разрешены только jpg, jpeg, png, webp")
+
+    filename = f"{secrets.token_hex(16)}.{ext}"
+    path = UPLOADS_DIR / filename
+    path.write_bytes(content)
+    return f"{WEBAPP_URL}/uploads/{filename}"
 
 
 @dp.message_handler(commands=["start"])
@@ -74,23 +116,22 @@ async def admin_cmd(message: types.Message):
         return
 
     await message.answer(
-        "Добавление товара:\n"
-        "название|цена|описание|картинка|категория"
+        "Админка:\n\n"
+        "1) Текстом:\n"
+        "название|цена|описание|ссылка_на_картинку|категория\n\n"
+        "2) Фото + подпись:\n"
+        "название|цена|описание|категория\n\n"
+        f"3) Веб-админка:\n{WEBAPP_URL}/admin-web"
     )
 
 
 @dp.message_handler(lambda m: m.text and "|" in m.text)
-async def add_product_cmd(message: types.Message):
+async def add_product_text_cmd(message: types.Message):
     if message.from_user.id != ADMIN_ID:
         return
 
     parts = [p.strip() for p in message.text.split("|")]
     if len(parts) != 5:
-        await message.answer(
-            "Неверный формат.\n"
-            "Используй:\n"
-            "название|цена|описание|картинка|категория"
-        )
         return
 
     name, price_raw, description, image, category = parts
@@ -101,93 +142,63 @@ async def add_product_cmd(message: types.Message):
         await message.answer("Цена должна быть числом.")
         return
 
-    if not hasattr(db, "add_product"):
-        await message.answer(
-            "Функция add_product пока отсутствует в db.py. "
-            "Сначала нужно дописать её."
-        )
-        return
-
     try:
-        db.add_product(name, price, description, image, category)
-        await message.answer("Товар добавлен.")
+        product_id = db.add_product(name, price, description, image, category)
+        await message.answer(f"Товар добавлен. ID: {product_id}")
     except Exception as e:
         logger.exception("Ошибка при добавлении товара")
         await message.answer(f"Ошибка при добавлении товара: {e}")
 
 
-@dp.message_handler(content_types=types.ContentType.WEB_APP_DATA)
-async def webapp_order(message: types.Message):
-    try:
-        data = json.loads(message.web_app_data.data)
-    except Exception:
-        await message.answer("Не удалось обработать данные заказа.")
+@dp.message_handler(content_types=types.ContentType.PHOTO)
+async def add_product_photo_cmd(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
         return
 
-    tg_user = message.from_user.username or str(message.from_user.id)
-    metro = str(data.get("metro", "") or "")
-    delivery_time = str(data.get("time", "") or "")
-    items = data.get("items", []) or []
+    if not message.caption:
+        return
 
     try:
-        total = int(data.get("total", 0) or 0)
-    except (TypeError, ValueError):
-        total = 0
+        product = parse_product_caption(message.caption)
+    except Exception as e:
+        await message.answer(
+            "Для фото нужен формат подписи:\n"
+            "название|цена|описание|категория\n\n"
+            f"Ошибка: {e}"
+        )
+        return
 
     try:
-        order_id = db.create_order(
-            tg_user=tg_user,
-            metro=metro,
-            delivery_time=delivery_time,
-            items=items,
-            total=total,
+        photo = message.photo[-1]
+        file_info = await bot.get_file(photo.file_id)
+        downloaded = await bot.download_file(file_info.file_path)
+        content = downloaded.read()
+
+        ext = "jpg"
+        file_path = (file_info.file_path or "").lower()
+        if file_path.endswith(".png"):
+            ext = "png"
+        elif file_path.endswith(".webp"):
+            ext = "webp"
+        elif file_path.endswith(".jpeg"):
+            ext = "jpeg"
+
+        image_url = save_uploaded_file_bytes(content, ext)
+
+        product_id = db.add_product(
+            product["name"],
+            product["price"],
+            product["description"],
+            image_url,
+            product["category"],
+        )
+
+        await message.answer(
+            f"Товар добавлен.\nID: {product_id}\nКартинка: {image_url}"
         )
     except Exception as e:
-        logger.exception("Ошибка при сохранении заказа")
-        await message.answer(f"Ошибка при сохранении заказа: {e}")
-        return
-    lines = [f"Новый заказ #{order_id}"]
-
-    if message.from_user.username:
-        lines.append(f"TG: @{message.from_user.username}")
-    else:
-        lines.append(f"TG id: {message.from_user.id}")
-
-    if metro:
-        lines.append(f"Метро: {metro}")
-
-    if delivery_time:
-        lines.append(f"Время: {delivery_time}")
-
-    lines.append("")
-    lines.append("Товары:")
-
-    for item in items:
-        name = item.get("name", "товар")
-        qty = item.get("qty", 1)
-        price = item.get("price", 0)
-
-        try:
-            qty = int(qty)
-        except (TypeError, ValueError):
-            qty = 1
-
-        try:
-            price = int(price)
-        except (TypeError, ValueError):
-            price = 0
-
-        lines.append(f"• {name} x{qty} = {qty * price}₽")
-
-    lines.append("")
-    lines.append(f"Итого: {total}₽")
-
-    try:
-        await bot.send_message(ADMIN_ID, "\n".join(lines))
-    except Exception:
-        logger.exception("Не удалось отправить сообщение админу")
-
-    await message.answer("✅ Заказ принят! Мы скоро напишем вам.")
+        logger.exception("Ошибка при загрузке фото товара")
+        await message.answer(f"Ошибка при загрузке фото: {e}")
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -204,6 +215,7 @@ async def home():
       <body>
         <h1>MSV Shop</h1>
         <p>Сайт запущен ✅</p>
+        <p><a href="/admin-web">Открыть веб-админку</a></p>
       </body>
     </html>
     """
@@ -212,6 +224,11 @@ async def home():
 @app.get("/health")
 async def health():
     return JSONResponse({"status": "ok"})
+
+
+@app.get("/products")
+async def products():
+    return db.get_products()
 
 
 @app.on_event("startup")
@@ -236,4 +253,3 @@ async def on_shutdown():
     await session.close()
 
     logger.info("Приложение остановлено")
-
