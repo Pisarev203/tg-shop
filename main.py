@@ -1,4 +1,4 @@
-Wert, [09.03.2026 19:58]
+
 import asyncio
 import json
 import logging
@@ -236,3 +236,4 @@ async def on_shutdown():
     await session.close()
 
     logger.info("Приложение остановлено")
+
