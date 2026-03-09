@@ -138,7 +138,7 @@ function render(){
 
   for(const p of products){
     const inCart = cart[p.id] || 0;
-    const img = String(p.photo||"").trim();
+    const img = String((p.image || p.photo || "")).trim();
 
     grid.innerHTML += `
       <div class="p">
@@ -242,7 +242,7 @@ orderBtn.onclick = async ()=>{
     const data = await r.json().catch(()=>({}));
 
     if(!r.ok){
-        throw new Error(data.error  data.detail  "Ошибка заказа");
+        throw new Error(data.error || data.detail || "Ошибка заказа");
     }
 
     alert("Заказ отправлен! #" + data.order_id);
@@ -269,4 +269,3 @@ loadProducts();
 </script>
 </body>
 </html>
-
