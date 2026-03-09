@@ -35,16 +35,7 @@ def init_db():
                     created_at TIMESTAMP DEFAULT NOW()
                 );
                 """
-                )
-                cur.execute("""
-                ALTER TABLE orders
-                ADD COLUMN IF NOT EXISTS items_json JSONB DEFAULT '[]'::jsonb;
-                """)
-
-            cur.execute("""
-            ALTER TABLE orders
-            ADD COLUMN IF NOT EXISTS delivery_time TEXT DEFAULT '';
-            """)
+            )
 
             cur.execute(
                 "ALTER TABLE products ADD COLUMN IF NOT EXISTS description TEXT DEFAULT '';"
@@ -326,4 +317,3 @@ def get_orders(limit=50):
             }
         )
     return result
-
