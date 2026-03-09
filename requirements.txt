@@ -1,4 +1,6 @@
-fastapi
-uvicorn[standard]
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
 aiogram==2.25.1
-psycopg[binary]==3.1.9
+psycopg[binary]==3.2.9
+python-multipart==0.0.9
+requests==2.32.3
