@@ -1,3 +1,4 @@
+
 import json
 import os
 from contextlib import contextmanager
@@ -68,18 +69,15 @@ def init_db():
 
 
 def add_product(name, price, description="", image="", category=""):
-    name = (name or "").strip()
-    description = (description or "").strip()
-    image = (image or "").strip()
-    category = (category or "").strip()
+    name = str(name or "").strip()
+    description = str(description or "").strip()
+    image = str(image or "").strip()
+    category = str(category or "").strip()
 
     if not name:
         raise ValueError("Название товара пустое")
 
-    try:
-        price = int(price)
-    except (TypeError, ValueError):
-        raise ValueError("Цена должна быть числом")
+    price = int(price)
 
     with get_conn() as conn:
         with conn.cursor() as cur:
@@ -98,56 +96,35 @@ def add_product(name, price, description="", image="", category=""):
 
 
 def get_products():
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT id, name, price, description, image, category
-                FROM products
-                ORDER BY id DESC;
-                """
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, name, price, description, image, category
+                    FROM products
+                    ORDER BY id DESC;
+                    """
+                )
+                rows = cur.fetchall()
+
+        result = []
+        for row in rows:
+            result.append(
+                {
+                    "id": row[0],
+                    "name": row[1],
+                    "price": row[2],
+                    "description": row[3],
+                    "image": row[4],
+                    "category": row[5],
+                }
             )
-            rows = cur.fetchall()
+        return result
 
-    result = []
-    for row in rows:
-        result.append(
-            {
-                "id": row[0],
-                "name": row[1],
-                "price": row[2],
-                "description": row[3],
-                "image": row[4],
-                "category": row[5],
-            }
-        )
-    return result
-
-
-def get_product(product_id):
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT id, name, price, description, image, category
-                FROM products
-                WHERE id = %s;
-                """,
-                (product_id,),
-            )
-            row = cur.fetchone()
-
-    if not row:
-        return None
-
-    return {
-        "id": row[0],
-        "name": row[1],
-        "price": row[2],
-        "description": row[3],
-        "image": row[4],
-        "category": row[5],
-    }
+    except Exception as e:
+        print("DB ERROR:", e)
+        return []
 
 
 def delete_product(product_id):
@@ -162,59 +139,8 @@ def create_order(tg_user, metro, delivery_time, items, total):
     metro = str(metro or "").strip()
     delivery_time = str(delivery_time or "").strip()
 
-    if not tg_user:
-        raise ValueError("tg_user пустой")
-
     if not isinstance(items, list):
         items = []
-
-    normalized_items = []
-    calculated_total = 0
-
-    for item in items:
-        if not isinstance(item, dict):
-            continue
-
-        name = str(item.get("name", "товар")).strip() or "товар"
-
-        try:
-            qty = int(item.get("qty", 1) or 1)
-        except (TypeError, ValueError):
-            qty = 1
-
-        try:
-            price = int(item.get("price", 0) or 0)
-        except (TypeError, ValueError):
-            price = 0
-
-        if qty < 1:
-            qty = 1
-
-        if price < 0:
-            price = 0
-
-        line_total = qty * price
-        calculated_total += line_total
-
-        normalized_items.append(
-            {
-                "name": name,
-                "qty": qty,
-                "price": price,
-                "line_total": line_total,
-            }
-        )
-
-    try:
-        total = int(total)
-    except (TypeError, ValueError):
-        total = calculated_total
-
-    if total < 0:
-        total = calculated_total
-
-    if total == 0 and calculated_total > 0:
-        total = calculated_total
 
     with get_conn() as conn:
         with conn.cursor() as cur:
@@ -229,38 +155,16 @@ def create_order(tg_user, metro, delivery_time, items, total):
                     metro,
                     delivery_time,
                     total,
-                    json.dumps(normalized_items, ensure_ascii=False),
+                    json.dumps(items, ensure_ascii=False),
                 ),
             )
             order_id = cur.fetchone()[0]
-
-            for item in normalized_items:
-                cur.execute(
-                    """
-                    INSERT INTO order_items (order_id, product_name, qty, price, line_total)
-                    VALUES (%s, %s, %s, %s, %s);
-                    """,
-                    (
-                        order_id,
-                        item["name"],
-                        item["qty"],
-                        item["price"],
-                        item["line_total"],
-                    ),
-                )
 
         conn.commit()
         return order_id
 
 
 def get_orders(limit=50):
-    try:
-        limit = int(limit)
-    except (TypeError, ValueError):
-        limit = 50
-
-    if limit < 1:
-        limit = 50
 
     with get_conn() as conn:
         with conn.cursor() as cur:
@@ -273,9 +177,11 @@ def get_orders(limit=50):
                 """,
                 (limit,),
             )
+
             rows = cur.fetchall()
 
     result = []
+
     for row in rows:
         result.append(
             {
@@ -288,4 +194,5 @@ def get_orders(limit=50):
                 "created_at": str(row[6]),
             }
         )
+
     return result
