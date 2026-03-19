@@ -62,21 +62,11 @@ def init_db():
                 '''
             )
 
-            cur.execute(
-                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS metro TEXT DEFAULT '';"
-            )
-            cur.execute(
-                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_time TEXT DEFAULT '';"
-            )
-            cur.execute(
-                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS total INTEGER NOT NULL DEFAULT 0;"
-            )
-            cur.execute(
-                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS items_json JSONB NOT NULL DEFAULT '[]'::jsonb;"
-            )
-            cur.execute(
-                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();"
-            )
+            cur.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS metro TEXT DEFAULT '';")
+            cur.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_time TEXT DEFAULT '';")
+            cur.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS total INTEGER NOT NULL DEFAULT 0;")
+            cur.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS items_json JSONB NOT NULL DEFAULT '[]'::jsonb;")
+            cur.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();")
 
             cur.execute(
                 '''
