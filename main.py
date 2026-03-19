@@ -225,6 +225,52 @@ async def api_order(payload: dict):
             total=total,
         )
 
+        try:
+            lines = [
+                f"🛒 НОВЫЙ ЗАКАЗ #{order_id}",
+                "",
+                f"👤 Пользователь: {tg_user}",
+                f"🚇 Метро: {metro or '-'}",
+                f"⏰ Время: {delivery_time or '-'}",
+                "",
+                "📦 Товары:",
+            ]
+
+            calculated_total = 0
+
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+
+                name = str(item.get("name", "товар") or "товар")
+                try:
+                    qty = int(item.get("qty", 1) or 1)
+                except Exception:
+                    qty = 1
+
+                try:
+                    price = int(item.get("price", 0) or 0)
+                except Exception:
+                    price = 0
+
+                if qty < 1:
+                    qty = 1
+                if price < 0:
+                    price = 0
+
+                line_total = qty * price
+                calculated_total += line_total
+                lines.append(f"• {name} x{qty} = {line_total} ₽")
+
+            if total <= 0:
+                total = calculated_total
+
+            lines.extend(["", f"💰 Итого: {total} ₽"])
+
+            await bot.send_message(ADMIN_ID, "\n".join(lines))
+        except Exception:
+            logger.exception("Не удалось отправить уведомление в Telegram")
+
         return {"ok": True, "order_id": order_id}
     except Exception as e:
         logger.exception("Ошибка оформления заказа через /api/order")
