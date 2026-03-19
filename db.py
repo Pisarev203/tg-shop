@@ -136,6 +136,22 @@ def get_products():
         return []
 
 
+
+def delete_product(product_id):
+    product_id = int(product_id)
+
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                '''
+                DELETE FROM products
+                WHERE id = %s;
+                ''',
+                (product_id,),
+            )
+
+        conn.commit()
+
 def create_order(tg_user, metro, delivery_time, items, total):
     tg_user = str(tg_user or "").strip()
     metro = str(metro or "").strip()
