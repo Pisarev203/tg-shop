@@ -63,6 +63,22 @@ def init_db():
             )
 
             cur.execute(
+                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS metro TEXT DEFAULT '';"
+            )
+            cur.execute(
+                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_time TEXT DEFAULT '';"
+            )
+            cur.execute(
+                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS total INTEGER NOT NULL DEFAULT 0;"
+            )
+            cur.execute(
+                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS items_json JSONB NOT NULL DEFAULT '[]'::jsonb;"
+            )
+            cur.execute(
+                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();"
+            )
+
+            cur.execute(
                 '''
                 CREATE TABLE IF NOT EXISTS order_items (
                     id SERIAL PRIMARY KEY,
@@ -136,7 +152,6 @@ def get_products():
         return []
 
 
-
 def delete_product(product_id):
     product_id = int(product_id)
 
@@ -151,6 +166,7 @@ def delete_product(product_id):
             )
 
         conn.commit()
+
 
 def create_order(tg_user, metro, delivery_time, items, total):
     tg_user = str(tg_user or "").strip()
