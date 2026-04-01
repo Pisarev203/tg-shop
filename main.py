@@ -72,6 +72,28 @@ def save_uploaded_file_bytes(content: bytes, ext: str) -> str:
     return f"{WEBAPP_URL}/uploads/{filename}"
 
 
+def format_order_lines(items):
+    normalized_items, calculated_total = db.apply_promotions(items)
+    lines = ["📦 Товары:"]
+
+    for item in normalized_items:
+        if item.get("is_gift"):
+            lines.append(f"• 🎁 {item['name']} x{item['qty']} = 0 ₽")
+            continue
+
+        extra = ""
+        if item.get("promo_type") == "bogo" and item.get("free_qty", 0) > 0:
+            extra = f" (акция 1+1, бесплатно: {item['free_qty']})"
+        elif item.get("promo_type") == "gift" and item.get("promo_text"):
+            extra = f" (+ подарок: {item['promo_text']})"
+
+        lines.append(
+            f"• {item['name']} x{item['qty']} = {item['line_total']} ₽{extra}"
+        )
+
+    return lines, calculated_total
+
+
 @dp.message_handler(commands=["start"])
 async def start_cmd(message: types.Message):
     await message.answer("Открыть магазин:", reply_markup=build_main_keyboard())
@@ -89,6 +111,7 @@ async def admin_cmd(message: types.Message):
         "название|цена|описание|ссылка|категория\n\n"
         "Фото + подпись:\n"
         "название|цена|описание|категория\n\n"
+        "Акции настраиваются в веб-админке.\n\n"
         f"Веб-админка:\n{WEBAPP_URL}/admin-web"
     )
 
@@ -233,39 +256,11 @@ async def api_order(payload: dict):
                 f"🚇 Метро: {metro or '-'}",
                 f"⏰ Время: {delivery_time or '-'}",
                 "",
-                "📦 Товары:",
             ]
 
-            calculated_total = 0
-
-            for item in items:
-                if not isinstance(item, dict):
-                    continue
-
-                name = str(item.get("name", "товар") or "товар")
-                try:
-                    qty = int(item.get("qty", 1) or 1)
-                except Exception:
-                    qty = 1
-
-                try:
-                    price = int(item.get("price", 0) or 0)
-                except Exception:
-                    price = 0
-
-                if qty < 1:
-                    qty = 1
-                if price < 0:
-                    price = 0
-
-                line_total = qty * price
-                calculated_total += line_total
-                lines.append(f"• {name} x{qty} = {line_total} ₽")
-
-            if total <= 0:
-                total = calculated_total
-
-            lines.extend(["", f"💰 Итого: {total} ₽"])
+            product_lines, final_total = format_order_lines(items)
+            lines.extend(product_lines)
+            lines.extend(["", f"💰 Итого: {final_total} ₽"])
 
             await bot.send_message(ADMIN_ID, "\n".join(lines))
         except Exception:
@@ -282,10 +277,20 @@ async def admin_web():
     products = db.get_products()
     rows = []
 
+    promo_names = {
+        "none": "Без акции",
+        "bogo": "1+1",
+        "gift": "Подарок",
+    }
+
     for p in products:
         image_html = ""
         if p.get("image"):
-            image_html = f'<img src="{p["image"]}" style="width:70px;height:70px;object-fit:cover;border-radius:8px;">'
+            image_html = f'<img src="{p["image"]}" style="width:70px;height:70px;object-fit:contain;border-radius:8px;background:#fff;padding:4px;">'
+
+        promo_view = promo_names.get(p.get("promo_type"), "Без акции")
+        if p.get("promo_text"):
+            promo_view += f'<br><small>{p["promo_text"]}</small>'
 
         rows.append(
             f"""
@@ -295,6 +300,7 @@ async def admin_web():
                 <td>{p["name"]}</td>
                 <td>{p["price"]} ₽</td>
                 <td>{p["category"]}</td>
+                <td>{promo_view}</td>
                 <td>{p["description"]}</td>
                 <td style="white-space: nowrap;">
                     <a href="/admin-web/edit/{p["id"]}" style="margin-right:10px;">Редактировать</a>
@@ -314,11 +320,11 @@ async def admin_web():
         <style>
             body {{
                 font-family: Arial, sans-serif;
-                max-width: 1200px;
+                max-width: 1280px;
                 margin: 30px auto;
                 padding: 0 16px;
             }}
-            input, textarea, button {{
+            input, textarea, select, button {{
                 padding: 10px;
                 font-size: 16px;
                 margin-bottom: 10px;
@@ -340,7 +346,7 @@ async def admin_web():
                 background: #f5f5f5;
             }}
             .form-box {{
-                max-width: 500px;
+                max-width: 560px;
                 margin-bottom: 30px;
             }}
         </style>
@@ -354,6 +360,12 @@ async def admin_web():
                 <input name="price" type="number" placeholder="Цена" required>
                 <input name="category" placeholder="Категория" required>
                 <textarea name="description" placeholder="Описание"></textarea>
+                <select name="promo_type">
+                    <option value="none">Без акции</option>
+                    <option value="bogo">1+1</option>
+                    <option value="gift">Подарок</option>
+                </select>
+                <input name="promo_text" placeholder="Текст акции: например 'Жидкость в подарок'">
                 <input type="file" name="image" accept=".jpg,.jpeg,.png,.webp">
                 <button type="submit">Добавить товар</button>
             </form>
@@ -368,6 +380,7 @@ async def admin_web():
                 <th>Название</th>
                 <th>Цена</th>
                 <th>Категория</th>
+                <th>Акция</th>
                 <th>Описание</th>
                 <th>Действия</th>
             </tr>
@@ -384,6 +397,8 @@ async def admin_web_add(
     price: int = Form(...),
     category: str = Form(...),
     description: str = Form(""),
+    promo_type: str = Form("none"),
+    promo_text: str = Form(""),
     image: UploadFile = File(None),
 ):
     image_url = ""
@@ -393,7 +408,7 @@ async def admin_web_add(
         ext = image.filename.rsplit(".", 1)[-1] if "." in image.filename else "jpg"
         image_url = save_uploaded_file_bytes(content, ext)
 
-    db.add_product(name, price, description, image_url, category)
+    db.add_product(name, price, description, image_url, category, promo_type, promo_text)
     return RedirectResponse("/admin-web", 303)
 
 
@@ -406,7 +421,10 @@ async def admin_web_edit(product_id: int):
 
     image_preview = ""
     if product.get("image"):
-        image_preview = f'<p><img src="{product["image"]}" style="width:120px;height:120px;object-fit:cover;border-radius:8px;"></p>'
+        image_preview = f'<p><img src="{product["image"]}" style="width:140px;height:140px;object-fit:contain;border-radius:8px;background:#fff;padding:4px;"></p>'
+
+    def sel(value: str) -> str:
+        return "selected" if product.get("promo_type") == value else ""
 
     return f"""
     <html>
@@ -420,7 +438,7 @@ async def admin_web_edit(product_id: int):
                 margin: 30px auto;
                 padding: 0 16px;
             }}
-            input, textarea, button {{
+            input, textarea, select, button {{
                 padding: 10px;
                 font-size: 16px;
                 margin-bottom: 10px;
@@ -438,6 +456,13 @@ async def admin_web_edit(product_id: int):
             <input name="price" type="number" value="{product["price"]}" required>
             <input name="category" value="{product["category"]}" required>
             <textarea name="description">{product["description"]}</textarea>
+
+            <select name="promo_type">
+                <option value="none" {sel("none")}>Без акции</option>
+                <option value="bogo" {sel("bogo")}>1+1</option>
+                <option value="gift" {sel("gift")}>Подарок</option>
+            </select>
+            <input name="promo_text" value="{product.get("promo_text", "")}" placeholder="Например: Жидкость в подарок">
 
             <p>Текущая ссылка на картинку:</p>
             <input name="image_url" value="{product["image"]}">
@@ -462,6 +487,8 @@ async def admin_web_edit_post(
     category: str = Form(...),
     description: str = Form(""),
     image_url: str = Form(""),
+    promo_type: str = Form("none"),
+    promo_text: str = Form(""),
     image: UploadFile = File(None),
 ):
     product = db.get_product(product_id)
@@ -483,6 +510,8 @@ async def admin_web_edit_post(
         description=description,
         image=final_image,
         category=category,
+        promo_type=promo_type,
+        promo_text=promo_text,
     )
 
     return RedirectResponse("/admin-web", 303)
