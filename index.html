@@ -1,4 +1,4 @@
-<!doctype html>
+\<!doctype html>
 <html lang="ru">
 <head>
   <meta charset="utf-8"/>
@@ -222,7 +222,7 @@
         <div class="panelTitle" style="margin-bottom:6px">Карточка товара</div>
         <h2 id="mName"></h2>
       </div>
-      <button class="ghost" onclick="closeProduct(event)">Закрыть</button>
+      <button class="ghost" data-close-modal="1" onclick="closeProduct(event)">Закрыть</button>
     </div>
     <div class="modalBody">
       <div class="modalImageWrap" id="mImageBox"></div>
@@ -423,7 +423,7 @@ function renderMenu(){
 
   for(const cat of categories){
     menu.innerHTML += `
-      <button class="menuBtn ${currentCategory === cat.name ? "active" : ""}" onclick="setCategory(${JSON.stringify(cat.name)})">
+      <button class="menuBtn ${currentCategory === cat.name ? "active" : ""}" onclick='setCategory(this.dataset.category); return false;' data-category="${escapeHtml(cat.name)}">
         <span>${escapeHtml(cat.name)}</span>
         <span class="menuCount">${cat.count}</span>
       </button>
@@ -434,7 +434,7 @@ function renderMenu(){
     <button class="chip ${currentCategory === "all" ? "active" : ""}" onclick="setCategory('all')">Все</button>
   `;
   for(const cat of categories){
-    chips.innerHTML += `<button class="chip ${currentCategory === cat.name ? "active" : ""}" onclick="setCategory(${JSON.stringify(cat.name)})">${escapeHtml(cat.name)}</button>`;
+    chips.innerHTML += `<button class="chip ${currentCategory === cat.name ? "active" : ""}" data-category="${escapeHtml(cat.name)}" onclick='setCategory(this.dataset.category); return false;'>${escapeHtml(cat.name)}</button>`;
   }
 
   summaryProducts.textContent = String(products.length);
@@ -574,9 +574,13 @@ function openProduct(id){
 }
 
 function closeProduct(event){
-  if(event && event.target && event.target !== overlay && event.target.id !== "modal"){
-    const inside = event.target.closest && event.target.closest(".modal");
-    if(inside) return;
+  if(event){
+    event.preventDefault && event.preventDefault();
+    event.stopPropagation && event.stopPropagation();
+    const target = event.target;
+    const clickedOverlay = target === overlay;
+    const forceClose = !!(target && (target.closest?.('[data-close-modal="1"]')));
+    if(!clickedOverlay && !forceClose) return;
   }
   overlay.classList.remove("show");
 }
