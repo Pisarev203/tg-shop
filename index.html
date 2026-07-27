@@ -3,23 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-  <meta name="theme-color" content="#071117">
-  <title>ОБЛАКО БОТ</title>
+  <meta name="theme-color" content="#06120d">
+  <title>MSV BOT</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     :root {
-      --bg:#05090c; --bg-soft:#0b171e; --card:#111c24; --card-2:#17242e;
-      --text:#f4f8fb; --muted:#94a7b2; --line:#22343f; --blue:#2aabee;
-      --blue-2:#119bdc; --danger:#ff5f6d; --ok:#44d492; --radius:22px;
+      --bg:#040b08; --bg-soft:#0a1811; --card:#0f1d16; --card-2:#17291f;
+      --text:#f3fbf6; --muted:#91aa9b; --line:#244234; --blue:#39d98a;
+      --blue-2:#159957; --danger:#ff6675; --ok:#7ee2a8; --radius:22px;
       --safe-bottom:env(safe-area-inset-bottom,0px);
     }
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-    body{background:radial-gradient(circle at 0 0,#0e2b38 0,transparent 35%),radial-gradient(circle at 100% 45%,#0a1d25 0,transparent 35%),var(--bg)}
+    body{background:radial-gradient(circle at 0 0,#103525 0,transparent 35%),radial-gradient(circle at 100% 45%,#0b2117 0,transparent 35%),var(--bg)}
     button,input,textarea,select{font:inherit}
     button{color:inherit}
     .app{min-height:100vh;max-width:720px;margin:0 auto;padding-bottom:calc(92px + var(--safe-bottom))}
-    .topbar{position:sticky;top:0;z-index:20;padding:12px 16px 10px;background:linear-gradient(180deg,rgba(5,9,12,.98),rgba(5,9,12,.86),transparent);backdrop-filter:blur(16px)}
+    .topbar{position:sticky;top:0;z-index:20;padding:12px 16px 10px;background:linear-gradient(180deg,rgba(4,11,8,.98),rgba(4,11,8,.86),transparent);backdrop-filter:blur(16px)}
     .brand-row{height:42px;display:flex;align-items:center;justify-content:center;position:relative}
     .brand-title{font-size:20px;font-weight:900;letter-spacing:.03em}
     .brand-dot{width:9px;height:9px;border-radius:50%;background:var(--blue);box-shadow:0 0 16px var(--blue);display:inline-block;margin-right:8px}
@@ -35,7 +35,7 @@
     .sort-btn{border:1px solid var(--line);background:var(--card);padding:10px 13px;border-radius:14px;cursor:pointer}
     .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
     .product{min-width:0;display:flex;flex-direction:column}
-    .product-media{aspect-ratio:1/1;position:relative;background:linear-gradient(145deg,#1b2b35,#0d151b);border-radius:22px;overflow:hidden;border:1px solid rgba(255,255,255,.04);cursor:pointer}
+    .product-media{aspect-ratio:1/1;position:relative;background:linear-gradient(145deg,#1a3024,#0d1912);border-radius:22px;overflow:hidden;border:1px solid rgba(255,255,255,.04);cursor:pointer}
     .product-media img{width:100%;height:100%;object-fit:cover;display:block}
     .image-fallback{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#58707d;font-size:42px;font-weight:900}
     .badge{position:absolute;left:9px;top:9px;background:rgba(5,9,12,.78);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.1);padding:5px 8px;border-radius:9px;font-size:10px;font-weight:800;max-width:calc(100% - 18px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -62,11 +62,11 @@
     .promo-row{display:grid;grid-template-columns:1fr auto;gap:8px}.promo-row button{border:1px solid var(--blue);background:transparent;color:var(--blue);border-radius:14px;padding:0 14px;font-weight:800}
     .totals{border-top:1px solid var(--line);padding-top:12px;margin-top:13px}.total-row{display:flex;justify-content:space-between;margin:8px 0;color:var(--muted)}.total-row.final{font-size:22px;color:var(--text);font-weight:900}.discount{color:var(--ok)}
     .checkout .primary{width:100%;min-height:52px;margin-top:12px;font-size:16px}.primary:disabled{opacity:.45;cursor:not-allowed}
-    .profile-card{text-align:center;padding:28px 18px 18px}.avatar{width:92px;height:92px;border-radius:50%;background:linear-gradient(135deg,var(--blue),#715cff);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:900;overflow:hidden;border:4px solid #0d171e;box-shadow:0 12px 34px rgba(42,171,238,.2)}.avatar img{width:100%;height:100%;object-fit:cover}
+    .profile-card{text-align:center;padding:28px 18px 18px}.avatar{width:92px;height:92px;border-radius:50%;background:linear-gradient(135deg,var(--blue),#0f7a48);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:900;overflow:hidden;border:4px solid #0c1711;box-shadow:0 12px 34px rgba(57,217,138,.2)}.avatar img{width:100%;height:100%;object-fit:cover}
     .profile-name{font-size:25px;font-weight:900}.profile-user{color:var(--muted);margin-top:3px}
     .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}.stat{background:var(--card);border:1px solid var(--line);padding:13px 8px;border-radius:17px;text-align:center}.stat strong{display:block;font-size:19px}.stat span{color:var(--muted);font-size:11px}
     .panel{background:var(--card);border:1px solid var(--line);padding:16px;border-radius:22px;margin:12px 0}.panel h2{font-size:18px;margin:0 0 12px}.panel p{color:var(--muted);line-height:1.45;margin:8px 0}
-    .progress{height:9px;border-radius:9px;background:#0b151b;overflow:hidden;margin:12px 0}.progress>i{display:block;height:100%;background:linear-gradient(90deg,var(--blue),#6d6bff);border-radius:inherit}
+    .progress{height:9px;border-radius:9px;background:#0a1710;overflow:hidden;margin:12px 0}.progress>i{display:block;height:100%;background:linear-gradient(90deg,var(--blue),#8ce7ae);border-radius:inherit}
     .ref-code{font-size:21px;font-weight:900;letter-spacing:.08em;color:var(--blue)}.ref-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.ref-actions button{min-height:43px}
     .order-card{background:#0b151b;border:1px solid var(--line);border-radius:16px;padding:13px;margin:9px 0}.order-top{display:flex;justify-content:space-between;gap:8px}.order-id{font-weight:900}.order-date{color:var(--muted);font-size:12px}.order-items{color:var(--muted);font-size:13px;margin:8px 0;line-height:1.45}.status{display:inline-flex;padding:5px 9px;border-radius:999px;background:#1c2a33;font-size:11px;font-weight:800}.status.completed{background:rgba(68,212,146,.15);color:var(--ok)}.status.cancelled{background:rgba(255,95,109,.15);color:var(--danger)}
     .bottom-nav{position:fixed;z-index:30;bottom:0;left:50%;transform:translateX(-50%);width:min(720px,100%);height:calc(76px + var(--safe-bottom));padding:8px 22px var(--safe-bottom);display:grid;grid-template-columns:repeat(3,1fr);background:rgba(5,9,12,.94);border-top:1px solid var(--line);backdrop-filter:blur(20px)}
@@ -81,7 +81,7 @@
 <body>
   <div class="app">
     <header class="topbar" id="topbar">
-      <div class="brand-row"><div class="brand-title"><span class="brand-dot"></span>ОБЛАКО БОТ</div></div>
+      <div class="brand-row"><div class="brand-title"><span class="brand-dot"></span>MSV BOT</div></div>
       <label class="search" id="searchBox">
         <svg viewBox="0 0 24 24" width="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
         <input id="searchInput" placeholder="Поиск" autocomplete="off">
@@ -136,6 +136,18 @@
     const tg = window.Telegram?.WebApp || null;
     if (tg) { tg.ready(); tg.expand(); try { if (tg.isVersionAtLeast?.('6.1')) { tg.setHeaderColor('#05090c'); tg.setBackgroundColor('#05090c'); } } catch (_) {} }
     const initData = tg?.initData || '';
+    const authHash = new URLSearchParams(location.hash.replace(/^#/, ''));
+    const linkAuth = authHash.get('auth') || '';
+    let fallbackAuth = linkAuth;
+    if (linkAuth) {
+      try { sessionStorage.setItem('msv-web-auth', linkAuth); } catch (_) {}
+      authHash.delete('auth');
+      const cleanHash = authHash.toString();
+      history.replaceState(null, '', `${location.pathname}${location.search}${cleanHash ? `#${cleanHash}` : ''}`);
+    } else {
+      try { fallbackAuth = sessionStorage.getItem('msv-web-auth') || ''; } catch (_) {}
+    }
+    const hasAuth = Boolean(initData || fallbackAuth);
     const unsafeUser = tg?.initDataUnsafe?.user || null;
     const refParam = tg?.initDataUnsafe?.start_param || new URLSearchParams(location.search).get('ref') || '';
     const CART_KEY = 'msv-shop-cart-v2';
@@ -158,6 +170,7 @@
     async function api(path, options={}) {
       const headers = {'Content-Type':'application/json', ...(options.headers || {})};
       if (initData) headers['X-Telegram-Init-Data'] = initData;
+      else if (fallbackAuth) headers['X-MSV-Auth'] = fallbackAuth;
       const response = await fetch(path, {...options, headers});
       let data = null; try { data = await response.json(); } catch (_) {}
       if (!response.ok) throw new Error(data?.detail || data?.error || `Ошибка ${response.status}`);
@@ -169,7 +182,7 @@
         const data = await api('/api/v2/catalog');
         state.products = data.products || []; state.categories = data.categories || []; state.brands = data.brands || [];
         syncCartProducts(); renderFilters(); renderProducts();
-        if (initData) loadSession().catch(()=>{});
+        if (hasAuth) loadSession().catch(()=>{});
       } catch (error) { $('#productGrid').innerHTML=`<div class="empty" style="grid-column:1/-1"><div class="empty-icon">⚠️</div>${esc(error.message)}</div>`; }
     }
 
@@ -250,7 +263,7 @@
           <div class="field"><label>УДОБНОЕ ВРЕМЯ</label><input id="checkoutTime" placeholder="Сегодня после 18:00"></div>
           <div class="field"><label>ПРОМОКОД</label><div class="promo-row"><input id="promoInput" value="${esc(state.promoCode)}" placeholder="Введите код"><button id="applyPromo">Применить</button></div></div>
           <div class="field"><label>КОММЕНТАРИЙ</label><textarea id="checkoutComment" placeholder="Пожелания к заказу"></textarea></div>
-          <div id="quoteBox">${quoteHtml()}</div><button class="primary" id="checkoutButton" ${initData?'':'disabled'}>${initData?'Оформить заказ':'Откройте магазин в Telegram'}</button>
+          <div id="quoteBox">${quoteHtml()}</div><button class="primary" id="checkoutButton" ${hasAuth?'':'disabled'}>${hasAuth?'Оформить заказ':'Откройте магазин в Telegram'}</button>
         </div>`;
       refreshQuote();
     }
@@ -265,14 +278,14 @@
     }
     function changeQty(key,delta) { const item=state.cart.find(x=>x.key===key); if(!item)return; item.qty=Math.max(1,Math.min(99,item.qty+delta)); saveCart(); renderCart(); }
     async function checkout() {
-      if(!initData){toast('Откройте магазин внутри Telegram',true);return;} const button=$('#checkoutButton'); button.disabled=true; button.textContent='Оформляем…';
+      if(!hasAuth){toast('Откройте магазин новой кнопкой после /start',true);return;} const button=$('#checkoutButton'); button.disabled=true; button.textContent='Оформляем…';
       try { const data=await api('/api/v2/orders',{method:'POST',body:JSON.stringify({items:state.cart,promo_code:state.promoCode,metro:$('#checkoutMetro').value,delivery_time:$('#checkoutTime').value,comment:$('#checkoutComment').value})}); state.cart=[];state.quote=null;state.promoCode='';saveCart();renderCart();toast(`Заказ №${data.order.id} оформлен`);haptic('heavy'); }
       catch(error){toast(error.message,true);button.disabled=false;button.textContent='Оформить заказ';}
     }
 
     async function renderProfile() {
       $('#searchBox').style.display='none'; const root=$('#profileContent');
-      if(!initData){root.innerHTML='<div class="empty"><div class="empty-icon">👤</div><strong>Профиль доступен в Telegram</strong><br>Откройте магазин кнопкой в боте</div>';return;}
+      if(!hasAuth){root.innerHTML='<div class="empty"><div class="empty-icon">👤</div><strong>Профиль доступен в Telegram</strong><br>Отправьте боту /start и откройте новую кнопку</div>';return;}
       root.innerHTML='<div class="loader"></div>';
       try { state.profile=await api('/api/v2/profile'); const {customer,orders,next_tier,successful_referrals,referral_link}=state.profile; const name=[customer.first_name,customer.last_name].filter(Boolean).join(' ')||'Покупатель'; const initial=(customer.first_name||customer.username||'?')[0].toUpperCase(); const progress=next_tier?Math.min(100,customer.orders_count/next_tier.orders*100):100;
         root.innerHTML=`<div class="profile-card"><div class="avatar">${customer.photo_url?`<img src="${esc(customer.photo_url)}" alt="">`:esc(initial)}</div><div class="profile-name">${esc(name)}</div><div class="profile-user">${customer.username?'@'+esc(customer.username):'Telegram ID '+customer.telegram_id}</div></div>
@@ -284,7 +297,7 @@
       } catch(error){root.innerHTML=`<div class="empty"><div class="empty-icon">⚠️</div>${esc(error.message)}</div>`;}
     }
     async function copyReferral(value){try{await navigator.clipboard.writeText(value);toast('Реферальная ссылка скопирована');haptic();}catch(_){toast('Не удалось скопировать',true);}}
-    function shareReferral(value){const text='Заходи в ОБЛАКО БОТ — тебе будет скидка 5% на первый заказ';const url=`https://t.me/share/url?url=${encodeURIComponent(value)}&text=${encodeURIComponent(text)}`;if(tg?.openTelegramLink)tg.openTelegramLink(url);else window.open(url,'_blank');}
+    function shareReferral(value){const text='Заходи в MSV BOT — тебе будет скидка 5% на первый заказ';const url=`https://t.me/share/url?url=${encodeURIComponent(value)}&text=${encodeURIComponent(text)}`;if(tg?.openTelegramLink)tg.openTelegramLink(url);else window.open(url,'_blank');}
 
     function switchView(view) {
       state.currentView=view; document.querySelectorAll('.view').forEach(el=>el.classList.remove('active')); document.querySelectorAll('.nav-btn').forEach(el=>el.classList.toggle('active',el.dataset.view===view));
