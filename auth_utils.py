@@ -2,12 +2,61 @@ import hashlib
 import hmac
 import json
 import time
-from base64 import b64decode
+from base64 import b64decode, urlsafe_b64decode, urlsafe_b64encode
 from urllib.parse import parse_qsl
 
 
 class TelegramAuthError(ValueError):
     pass
+
+
+def _fallback_secret(bot_token: str) -> bytes:
+    return hashlib.sha256(f"MSVWebAuth:{bot_token}".encode("utf-8")).digest()
+
+
+def create_webapp_auth(telegram_user: dict, bot_token: str, ttl_seconds: int = 604800) -> str:
+    """Create a signed fallback for Telegram clients that omit WebApp initData."""
+    if not bot_token or not telegram_user.get("id"):
+        raise TelegramAuthError("Не удалось создать авторизацию магазина")
+    now = int(time.time())
+    payload = {
+        "id": int(telegram_user["id"]),
+        "username": str(telegram_user.get("username") or ""),
+        "first_name": str(telegram_user.get("first_name") or ""),
+        "last_name": str(telegram_user.get("last_name") or ""),
+        "language_code": str(telegram_user.get("language_code") or ""),
+        "iat": now,
+        "exp": now + max(300, int(ttl_seconds)),
+    }
+    body = urlsafe_b64encode(
+        json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    ).rstrip(b"=").decode("ascii")
+    signature = hmac.new(_fallback_secret(bot_token), body.encode("ascii"), hashlib.sha256).hexdigest()
+    return f"{body}.{signature}"
+
+
+def validate_webapp_auth(token: str, bot_token: str) -> dict:
+    if not token or "." not in token or not bot_token:
+        raise TelegramAuthError("Откройте магазин новой кнопкой после команды /start")
+    try:
+        body, received_signature = token.rsplit(".", 1)
+        expected_signature = hmac.new(
+            _fallback_secret(bot_token), body.encode("ascii"), hashlib.sha256
+        ).hexdigest()
+        if not hmac.compare_digest(received_signature, expected_signature):
+            raise TelegramAuthError("Подпись кнопки магазина недействительна")
+        padding = "=" * (-len(body) % 4)
+        payload = json.loads(urlsafe_b64decode(body + padding).decode("utf-8"))
+        now = int(time.time())
+        if not isinstance(payload, dict) or not payload.get("id"):
+            raise TelegramAuthError("В кнопке нет профиля Telegram")
+        if int(payload.get("exp") or 0) < now or int(payload.get("iat") or 0) > now + 60:
+            raise TelegramAuthError("Кнопка магазина устарела — отправьте боту /start")
+        return payload
+    except TelegramAuthError:
+        raise
+    except (ValueError, TypeError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise TelegramAuthError("Некорректная кнопка магазина") from exc
 
 
 def validate_telegram_init_data(init_data: str, bot_token: str, max_age_seconds: int = 86400) -> dict:
