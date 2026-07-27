@@ -7,7 +7,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, 
 from fastapi.responses import FileResponse
 
 import crm
-from auth_utils import TelegramAuthError, validate_telegram_init_data
+from auth_utils import TelegramAuthError, validate_telegram_init_data, validate_webapp_auth
 
 
 router = APIRouter()
@@ -17,9 +17,14 @@ ADMIN_ID = (os.getenv("ADMIN_ID") or "").strip()
 BOT_USERNAME = (os.getenv("BOT_USERNAME") or "").strip().lstrip("@")
 
 
-def _telegram_context(x_telegram_init_data: str = Header("", alias="X-Telegram-Init-Data")) -> dict:
+def _telegram_context(
+    x_telegram_init_data: str = Header("", alias="X-Telegram-Init-Data"),
+    x_msv_auth: str = Header("", alias="X-MSV-Auth"),
+) -> dict:
     try:
-        return validate_telegram_init_data(x_telegram_init_data, API_TOKEN)
+        if x_telegram_init_data:
+            return validate_telegram_init_data(x_telegram_init_data, API_TOKEN)
+        return {"user": validate_webapp_auth(x_msv_auth, API_TOKEN), "start_param": ""}
     except TelegramAuthError as exc:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
 
@@ -28,11 +33,17 @@ def _current_customer(context: dict = Depends(_telegram_context)) -> dict:
     return crm.upsert_customer(context["user"], context.get("start_param", ""))
 
 
-def _optional_customer(x_telegram_init_data: str = Header("", alias="X-Telegram-Init-Data")) -> dict | None:
-    if not x_telegram_init_data:
+def _optional_customer(
+    x_telegram_init_data: str = Header("", alias="X-Telegram-Init-Data"),
+    x_msv_auth: str = Header("", alias="X-MSV-Auth"),
+) -> dict | None:
+    if not x_telegram_init_data and not x_msv_auth:
         return None
     try:
-        context = validate_telegram_init_data(x_telegram_init_data, API_TOKEN)
+        if x_telegram_init_data:
+            context = validate_telegram_init_data(x_telegram_init_data, API_TOKEN)
+        else:
+            context = {"user": validate_webapp_auth(x_msv_auth, API_TOKEN), "start_param": ""}
         return crm.upsert_customer(context["user"], context.get("start_param", ""))
     except TelegramAuthError:
         return None
