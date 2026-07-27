@@ -11,11 +11,12 @@ from aiogram import Bot, Dispatcher, types
 from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+import psycopg
 
 import crm
 import db
 import v2
-from auth_utils import valid_admin_basic
+from auth_utils import create_webapp_auth, valid_admin_basic
 
 
 logging.basicConfig(level=logging.INFO)
@@ -26,6 +27,8 @@ ADMIN_ID_RAW = (os.getenv("ADMIN_ID") or "").strip()
 WEBAPP_URL = (os.getenv("WEBAPP_URL") or "").strip().rstrip("/")
 ADMIN_WEB_USER = (os.getenv("ADMIN_WEB_USER") or "admin").strip() or "admin"
 ADMIN_WEB_PASSWORD = (os.getenv("ADMIN_WEB_PASSWORD") or "").strip()
+DB_STARTUP_ATTEMPTS = max(1, int(os.getenv("DB_STARTUP_ATTEMPTS") or "8"))
+DB_STARTUP_DELAY = max(0.5, float(os.getenv("DB_STARTUP_DELAY") or "3"))
 
 if not API_TOKEN:
     raise RuntimeError("API_TOKEN не задан")
@@ -40,7 +43,7 @@ if not WEBAPP_URL:
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot)
-app = FastAPI(title="MSV Shop")
+app = FastAPI(title="MSV BOT")
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
@@ -89,10 +92,22 @@ async def protect_admin_pages(request: Request, call_next):
     return await call_next(request)
 
 
-def build_main_keyboard(start_param: str = ""):
+def build_main_keyboard(start_param: str = "", telegram_user: types.User | None = None):
     shop_url = WEBAPP_URL
     if start_param.startswith("ref_"):
         shop_url = f"{WEBAPP_URL}?ref={quote_plus(start_param)}"
+    if telegram_user:
+        auth_token = create_webapp_auth(
+            {
+                "id": telegram_user.id,
+                "username": telegram_user.username or "",
+                "first_name": telegram_user.first_name or "",
+                "last_name": telegram_user.last_name or "",
+                "language_code": telegram_user.language_code or "",
+            },
+            API_TOKEN,
+        )
+        shop_url = f"{shop_url}#auth={quote_plus(auth_token)}"
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
     kb.add(
         types.KeyboardButton(
@@ -117,7 +132,10 @@ def save_uploaded_file_bytes(content: bytes, ext: str) -> str:
 @dp.message_handler(commands=["start"])
 async def start_cmd(message: types.Message):
     start_param = (message.get_args() or "").strip()
-    await message.answer("Открыть магазин:", reply_markup=build_main_keyboard(start_param))
+    await message.answer(
+        "Открыть MSV BOT:",
+        reply_markup=build_main_keyboard(start_param, message.from_user),
+    )
 
 
 @dp.message_handler(commands=["admin"])
@@ -227,7 +245,7 @@ async def webapp_order(message: types.Message):
 async def home():
     if INDEX_HTML.exists():
         return FileResponse(INDEX_HTML)
-    return "<h1>MSV SHOP работает</h1>"
+    return "<h1>MSV BOT работает</h1>"
 
 
 @app.get("/health")
@@ -538,10 +556,34 @@ async def admin_web_delete(product_id: int):
     return RedirectResponse("/admin-web", 303)
 
 
+async def initialize_databases():
+    """Wait briefly for a managed PostgreSQL service during a cold start."""
+    for attempt in range(1, DB_STARTUP_ATTEMPTS + 1):
+        try:
+            await asyncio.to_thread(db.init_db)
+            await asyncio.to_thread(crm.init_db)
+            logger.info("PostgreSQL подключён, таблицы готовы")
+            return
+        except psycopg.OperationalError as exc:
+            if attempt >= DB_STARTUP_ATTEMPTS:
+                logger.error(
+                    "PostgreSQL недоступен после %s попыток. Проверьте DATABASE_URL и статус базы.",
+                    DB_STARTUP_ATTEMPTS,
+                )
+                raise
+            logger.warning(
+                "PostgreSQL пока недоступен (%s/%s): %s. Повтор через %.1f сек.",
+                attempt,
+                DB_STARTUP_ATTEMPTS,
+                exc,
+                DB_STARTUP_DELAY,
+            )
+            await asyncio.sleep(DB_STARTUP_DELAY)
+
+
 @app.on_event("startup")
 async def on_startup():
-    db.init_db()
-    crm.init_db()
+    await initialize_databases()
     app.state.bot_polling_task = asyncio.create_task(dp.start_polling())
 
 
